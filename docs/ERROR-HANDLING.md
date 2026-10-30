@@ -42,7 +42,7 @@ Example unexpected failure:
 
 Feature-specific errors may have more precise stable codes and safe details. Validation responses will add field-level `errors` when forms and validation rules arrive. Expected business outcomes should be explicit application results, mapped at the API boundary, rather than thrown as unexpected exceptions. No generic result framework is introduced yet.
 
-The foundation alone does not implement authentication, ownership checks, database-error classification, or business constraints. Increment 3 implements API-safe cookie 401/403 behavior and the narrowly scoped registration/login error contract in [AUTHENTICATION.md](AUTHENTICATION.md). Ownership-sensitive 404 behavior must be tested with future features. Do not map every database exception to 503.
+The foundation alone does not implement authentication, ownership checks, database-error classification, or business constraints. The event-type increment now maps only its known PostgreSQL active-name unique-index violation to a safe conflict; unrelated provider failures remain unexpected. Increment 3 implements API-safe cookie 401/403 behavior and the narrowly scoped registration/login error contract in [AUTHENTICATION.md](AUTHENTICATION.md). Ownership-sensitive 404 behavior must be tested with future features. Do not map every database exception to 503.
 
 ## Application logging policy
 
@@ -60,7 +60,7 @@ The centralized handler owns unexpected request-failure logging. It writes one a
 
 Future feature logs may add endpoint names/route templates, internal event/delivery identifiers, channel, attempt number, outcome, and duration. Avoid logging the same failure in both endpoint and service layers. The delivery processor, when implemented, owns delivery-attempt logs.
 
-Never log passwords, connection strings, cookies, authorization headers, antiforgery tokens, integration secrets, raw destinations, or event titles/messages. No request/response-body logging is enabled. Arbitrary exception text is not safe by default. EF sensitive-data logging remains disabled; any new provider diagnostics, richer local diagnostics, middleware, or sink must be reviewed for disclosure risk before enabling it. The allowlist is an application logging policy, not a general-purpose sanitizer for all third-party output or arbitrary logging-configuration overrides.
+Never log passwords, connection strings, cookies, authorization headers, antiforgery tokens, integration secrets, raw destinations, or event titles/messages. No request/response-body logging is enabled. Arbitrary exception text is not safe by default. EF sensitive-data logging remains disabled. The event-type concurrency tests exposed raw provider exceptions from EF before feature conflict translation; persistence now suppresses `SaveChangesFailed`, `QueryIterationFailed`, `CommandError`, `ConnectionError`, and `TransactionError` diagnostic events. Unexpected HTTP failures still reach the centralized safe handler, and bootstrap still sanitizes its startup exception. This trades low-level diagnostic detail in normal app logs for the agreed safe logging boundary. Any new provider diagnostics, richer local diagnostics, middleware, or sink must be reviewed for disclosure risk before enabling it. The allowlist is an application logging policy, not a general-purpose sanitizer for all third-party output or arbitrary logging-configuration overrides.
 
 ## Frontend foundation
 

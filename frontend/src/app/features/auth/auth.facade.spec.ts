@@ -17,6 +17,16 @@ describe('AuthFacade', () => {
   });
   afterEach(() => http.verify());
 
+  it('deduplicates guard/root restoration while keeping explicit retries available', () => {
+    facade.ensureRestored();
+    facade.ensureRestored();
+    http.expectOne('/api/auth/me').flush(user);
+    facade.ensureRestored();
+    http.expectNone('/api/auth/me');
+    facade.restore();
+    http.expectOne('/api/auth/me').flush(user);
+  });
+
   it('restores the current user and handles anonymous/network states', () => {
     expect(facade.status()).toBe('loading');
     facade.restore();

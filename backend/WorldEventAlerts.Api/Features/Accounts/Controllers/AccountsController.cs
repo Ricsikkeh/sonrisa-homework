@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using WorldEventAlerts.Api.Features.Accounts.Application;
 using WorldEventAlerts.Api.Features.Accounts.Contracts;
 using WorldEventAlerts.Api.Infrastructure.Errors;
+using WorldEventAlerts.Api.Infrastructure.Http;
 
 namespace WorldEventAlerts.Api.Features.Accounts.Controllers;
 
@@ -30,13 +31,13 @@ public sealed class AccountsController(IAccountService accounts, IAntiforgery an
 
     [AllowAnonymous]
     [HttpPost("register")]
-    [ServiceFilter(typeof(AccountAntiforgeryFilter))]
+    [ServiceFilter(typeof(ApiAntiforgeryFilter))]
     public Task<IActionResult> Register([FromBody] CredentialsRequest request, CancellationToken cancellationToken) =>
         HandleCredentials(request, accounts.RegisterAsync, StatusCodes.Status201Created, cancellationToken);
 
     [AllowAnonymous]
     [HttpPost("login")]
-    [ServiceFilter(typeof(AccountAntiforgeryFilter))]
+    [ServiceFilter(typeof(ApiAntiforgeryFilter))]
     public Task<IActionResult> Login([FromBody] CredentialsRequest request, CancellationToken cancellationToken) =>
         HandleCredentials(request, accounts.LoginAsync, StatusCodes.Status200OK, cancellationToken);
 

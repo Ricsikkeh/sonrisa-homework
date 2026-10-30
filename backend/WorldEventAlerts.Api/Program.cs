@@ -1,5 +1,7 @@
 using WorldEventAlerts.Api.Features.Accounts.Application;
-using WorldEventAlerts.Api.Features.Accounts.Controllers;
+using WorldEventAlerts.Api.Features.EventTypes.Application;
+using WorldEventAlerts.Api.Infrastructure.EventTypes;
+using WorldEventAlerts.Api.Infrastructure.Http;
 using WorldEventAlerts.Api.Infrastructure.Accounts;
 using WorldEventAlerts.Api.Infrastructure.Errors;
 using WorldEventAlerts.Api.Infrastructure.Persistence;
@@ -17,7 +19,9 @@ builder.Services.AddApiErrorHandling();
 builder.Services.AddAlertsPersistence(builder.Configuration);
 builder.Services.AddAccountInfrastructure(builder.Environment);
 builder.Services.AddAccountApplication();
-builder.Services.AddAccountPresentation();
+builder.Services.AddApiPresentation();
+builder.Services.AddEventTypeApplication();
+builder.Services.AddEventTypeInfrastructure();
 
 var app = builder.Build();
 
@@ -30,7 +34,7 @@ app.UseStatusCodePages(context =>
 
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/auth"))
+    if (context.Request.Path.StartsWithSegments("/auth") || context.Request.Path.StartsWithSegments("/event-types"))
     {
         context.Response.Headers.CacheControl = "no-store";
         context.Response.Headers.Pragma = "no-cache";

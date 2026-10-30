@@ -16,7 +16,7 @@ public sealed class AccountDependencyInjectionTests
     [Fact]
     public void Account_service_is_resolved_through_its_interface_with_scoped_lifetime()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = new TestApplication();
         using var firstScope = application.Services.CreateScope();
         using var secondScope = application.Services.CreateScope();
         var first = firstScope.ServiceProvider.GetRequiredService<IAccountService>();
@@ -62,7 +62,7 @@ public sealed class AccountDependencyInjectionTests
     }
 
     private static WebApplicationFactory<Program> CreateApplication(StubAccountService service) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        new TestApplication().WithWebHostBuilder(builder =>
         {
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
                 new Dictionary<string, string?> { ["ConnectionStrings:Alerts"] = null }));

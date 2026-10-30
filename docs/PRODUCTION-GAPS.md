@@ -4,7 +4,7 @@ This register distinguishes agreed POC limitations from future production concer
 
 ## Current implementation status
 
-The local-stack scaffold and increment 2 error-handling/logging foundation are implemented. The latter adds safe Problem Details for handled request failures, correlated allowlisted application error logs, structured console output, and a shared frontend parser; see [ERROR-HANDLING.md](ERROR-HANDLING.md). Increment 3 adds Identity registration/login, frontend forms, current-user restoration, an explicit Identity migration, cookie security, and antiforgery protection; see [AUTHENTICATION.md](AUTHENTICATION.md). Elevated-role management/protection, bootstrap, business entities, publication snapshots, simulated adapters, retry processing, and administrative views remain required MVP work, not completed capabilities.
+The local-stack scaffold and increment 2 error-handling/logging foundation are implemented. The latter adds safe Problem Details for handled request failures, correlated allowlisted application error logs, structured console output, and a shared frontend parser; see [ERROR-HANDLING.md](ERROR-HANDLING.md). Increment 3 adds Identity registration/login, frontend forms, current-user restoration, an explicit Identity migration, cookie security, and antiforgery protection; see [AUTHENTICATION.md](AUTHENTICATION.md). The later event-type prerequisite adds an explicitly enabled, Development-only [initial-admin bootstrap](ADMIN-BOOTSTRAP.md), with normalized collision refusal and transactional new-account/role creation. Administrator-only event-type management, an Angular administration menu/screen, active-name uniqueness, and soft deletion are also implemented; see [EVENT-TYPES.md](EVENT-TYPES.md). Elevated-role management/protection, subscriptions/destinations, event publication/snapshots, simulated adapters, retry processing, history, and other administrative views remain required MVP work, not completed capabilities. Subscription-blocked type deletion must be integrated before subscriptions are enabled; this slice does not claim that rule is complete.
 
 The API and Angular development server use local HTTP in Development only. Authentication uses HttpOnly cookies, an eight-hour non-sliding ticket, antiforgery tokens, and secure cookies outside Development. Production must enforce HTTPS with deployment-specific proxy configuration and key management; secure-cookie flags are not a complete deployment strategy. No logout/session-revocation UX is implemented in this increment.
 
@@ -18,7 +18,7 @@ The original assignment calls for notifying users through email and Slack. The a
 
 - Events are created manually by editors/administrators; no external news, market, or disaster feed is integrated.
 - Destinations are an email address and a Slack label, not verified real integrations.
-- Initial-admin provisioning is development-only, using uncommitted local configuration.
+- Implemented initial-admin provisioning is development-only and explicitly enabled, using uncommitted local configuration. It creates new accounts only; production provisioning, account promotion, password recovery, general role management, and multi-process bootstrap retries are not provided.
 - No email verification, password recovery, account disabling/deletion, or scheduled type retirement.
 - No event browser, event revision workflow, or complex matching.
 

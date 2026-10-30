@@ -34,7 +34,7 @@ public sealed class AccountBoundaryTests
     [InlineData("me")]
     public async Task Already_cancelled_gateway_operations_do_not_start_uncancellable_identity_calls(string operation)
     {
-        await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        await using var application = new TestApplication().WithWebHostBuilder(builder =>
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
                 new Dictionary<string, string?> { ["ConnectionStrings:Alerts"] = null })));
         using var scope = application.Services.CreateScope();

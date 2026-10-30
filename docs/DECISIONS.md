@@ -82,12 +82,28 @@ The user requested thin ASP.NET Core controllers instead of the endpoint class, 
 - Forward request cancellation through controller, service, and provider contracts. Check before/between unsupported Identity stages, but do not claim to cancel in-flight manager calls or undo committed effects. Do not use detached tasks or `WaitAsync` as fake I/O cancellation. The precise framework limitations and registration-after-abort semantics are documented in [AUTHENTICATION.md](AUTHENTICATION.md).
 - No new business features, dependency changes, schema changes, or commit authorization.
 
+## Approved event-type plan and implemented bootstrap prerequisite
+
+The user approved [EVENT-TYPES.md](EVENT-TYPES.md), including a separately reviewable development-admin bootstrap prerequisite, active-name uniqueness/reuse rules, and last-successful-rename behavior. The prerequisite is implemented. The user subsequently explicitly requested the event-type backend, administrator menu, and UI; those are now implemented and validated. General role management remains unimplemented.
+
+- Register a Development-only startup hosted service with explicit `DevelopmentAdmin:Enabled` opt-in. Disabled/non-Development startup does not touch persistence; malformed Development enablement or invalid enabled configuration fails safely.
+- Create a new Identity user and exact `Administrator` role membership in one serializable transaction, creating the role if needed. Existing normalized usernames without administrator membership are refused, never promoted or reset. Existing administrator membership is intentionally sufficient for repeat no-op; the supplied password is not verified/replaced.
+- Apply migrations explicitly before enabling bootstrap; no startup migration or migration-state certification. Concurrent startup failures are not retried automatically; restart after the successful provisioning commits.
+- Sanitize the exception reaching host startup logs without raw inner diagnostics. Observe cancellation before/between unsupported Identity stages and roll back uncommitted writes; committed effects are not undone.
+- No production provisioning, public bootstrap endpoint, role grant/revoke, final-administrator removal flow, or authentication/session policy change. Setup, tested guarantees, and limitations: [ADMIN-BOOTSTRAP.md](ADMIN-BOOTSTRAP.md).
+- The event-type slice uses an invariant-enforcing `EventTypeName`, thin controller/separate HTTP DTOs, scoped `IEventTypeService`, and a narrow `IEventTypeStore` implemented in EF infrastructure. The active-name partial unique index and atomic active-only UPDATE statements enforce uniqueness and prevent rename resurrection; no optimistic edit-version mechanism is introduced.
+- Share MVC configuration and post-binding antiforgery validation under `Infrastructure/Http` rather than depending on account controllers. Preserve existing account contracts.
+- Add only the implemented **Administration → Event types** menu item and guarded lazy screen; deduplicate initial session restoration between guard/root. Forms/facade own validation, safe errors, loading/submission state, confirmation, fresh CSRF, and explicit reloads, without automatic mutation retries.
+- Suppress EF's known raw command/connection/transaction/query/save failure diagnostic events: they otherwise log provider exceptions before feature conflict translation. Safe unexpected-request logging remains centralized; this does not promise sanitization of all third-party logging/configuration.
+- Subscription-blocked deletion and publication-time snapshots remain explicit integration work for future increments, not fabricated dependencies or completed rules.
+- Implementation stopped for review; the user subsequently explicitly authorized a descriptive commit and push for the completed bootstrap/event-type increment.
+
 ## Deferred implementation details
 
 No unresolved product question blocked increment 1. Before later increments, agree on any material behavior/security choices, including:
 
 - Deployment-specific HTTPS/proxy trust, persistent/shared data-protection keys, and account-abuse controls beyond default lockout. POC cookie/session/antiforgery choices are implemented in increment 3.
-- Bootstrap handling/reporting when the configured username already exists, preserving D06.
+- Production administrator provisioning. Development bootstrap collision/reporting behavior is resolved in the approved prerequisite above, preserving D06.
 - Concrete publication transaction, concurrency, and pending-delivery processing strategy.
 - Exact retry delay, simulation controls, and safe status/error vocabulary.
 - Field validation limits, destination masking, and history presentation details.

@@ -218,6 +218,78 @@ Scope: separate request validation, username invariants, Identity policy/busines
 
 After review of registration/login and the controller/layering, DI, validation, authorization, and cancellation follow-ups, the user explicitly authorized a descriptive commit and push. The checks above are the implementation evidence; no source behavior changed during commit preparation. Current planning/authentication status is updated to reflect this approval. Earlier review-stop notes remain historical records.
 
+## Increment 4 prerequisite: development administrator bootstrap
+
+Authorization: the user approved the event-type plan, including the separately reviewable bootstrap prerequisite, naming/uniqueness/reuse policy, and last-successful-rename policy. Only bootstrap is implemented at this review stop; no event-type CRUD/API/UI, general role management, or commit/push is included.
+
+### Test-first evidence
+
+- Added startup/Identity/relational tests before implementing the bootstrap service. `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal --filter FullyQualifiedName~DevelopmentAdminBootstrapTests`: **17 failed, 0 passed**. Failures showed no created account, no rejection of malformed enablement, and no registered bootstrap hosted service for the no-op/failure/rollback paths.
+- After implementation, the same command passed **17 cases**. Supplemental cancellation-after-save coverage brought the default bootstrap suite to **18 cases**. An additional opt-in PostgreSQL case exercises actual migrated provider behavior and host restarts.
+- A test-isolation check with `DevelopmentAdmin__Enabled=true` and empty credential overrides initially produced **3 failed health cases** because unrelated test hosts inherited local opt-in. Added a shared opt-out test factory and a permanent configuration-precedence regression. Existing request/provider tests now use that factory; dedicated bootstrap tests configure their own opt-in explicitly.
+
+### Completed checks
+
+- Final default `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`: **105 passed, 2 PostgreSQL opt-in cases skipped**.
+- The same command with `AUTH_TEST_CONNECTION` supplied privately from local user secrets: **107 passed, 0 failed/skipped**. This final provider run also forced inherited `DevelopmentAdmin__Enabled=true` with empty credentials, proving unrelated test hosts opt out while dedicated bootstrap hosts retain explicit control. Neither credentials nor connection-string values were printed. The new provider test migrated an isolated database, provisioned a new administrator, restarted with a differently cased name and changed supplied password without changing the hash, refused an existing regular-account collision, and rolled back a new account after an injected membership failure. The existing PostgreSQL concurrent-registration test also remained green.
+- SQLite startup tests prove disabled/non-Development operation without schema, malformed enablement fails safe host startup, enabled invalid input leaves no records, regular-account normalized collisions never promote/reset, initial cookie login/current-user reports the Administrator role without password/hash disclosure, and repeat provisioning leaves the hash/stamp/role counts unchanged.
+- Failure-injection coverage verifies no user/role/membership remains after a new membership write fails, no raw injected diagnostic or configured password reaches the tested exception/default captured logs, missing schema is not auto-created, and cancellation before work or after a user save leaves no committed records.
+- `dotnet build WorldEventAlerts.slnx --configuration Release --no-restore`: **passed, 0 warnings/errors**.
+- `dotnet format WorldEventAlerts.slnx --no-restore`, followed by `--verify-no-changes --no-restore`: **passed**.
+- `dotnet ef migrations has-pending-model-changes --project backend/WorldEventAlerts.Api --configuration Release --no-build`: **no pending model changes**. No migration or dependency change is part of this prerequisite.
+- PostgreSQL cleanup query found **zero leftover bootstrap/auth test databases** and **zero accounts in the ordinary development database**. No real administrator credentials were configured, and no actual development account was promoted or provisioned.
+- Independent focused read-only review identified no registration/session-policy regression. Its cancellation-after-write coverage recommendation was implemented and passed. Migration readiness is intentionally an explicit operator step, not a startup certification; existing administrator membership is intentionally sufficient for repeat no-op, as clarified in the bootstrap guide.
+- Documentation links, changed/new-file whitespace checks, and local-secret scanning passed; local LF-to-CRLF conversion warnings are non-failing.
+
+### Limitations and review status
+
+- No frontend source changed; frontend tests/builds, browser-driven flows, live Angular proxy, and real HTTP/HTTPS hosting smoke checks were not repeated. Cookie role reporting is covered through the actual in-process ASP.NET Core request pipeline.
+- PostgreSQL rollback uses an injected failure before the membership store save; cancellation-after-save is covered with SQLite. No real database outage, process crash, or multi-process concurrent bootstrap test was run. Concurrent uniqueness/serialization failures stop startup safely and require a restart, not an automatic retry mechanism.
+- Identity manager operations still lack token overloads. Checks and transactions provide cooperative cancellation/rollback before commit, not interruption of in-flight work or undo of committed state.
+- Safe exceptions and tested default logs are not a global sanitizer of third-party loggers or arbitrary configuration overrides. EF sensitive-data logging remains disabled.
+- Production provisioning, role grant/revoke, final-administrator removal protection, event-type management, subscription deletion restrictions, and publication/history snapshots remain unimplemented.
+- Stopped for the approved prerequisite review; no staging, commit, or push. Next approved design step is the event-type backend slice after review.
+
+## Increment 4: event-type backend, administrator menu, and management UI
+
+Authorization: after the bootstrap review stop, the user explicitly requested event-type management with an administrator menu and an accounts-style backend. Scope follows the approved event-type plan. No subscriptions, publication/history, general role management, commit, or push is included.
+
+### Test-first evidence
+
+- Added HTTP/request-pipeline tests before creating event-type endpoints. `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal --filter FullyQualifiedName~EventTypeTests`: **22 failed, 0 passed**, for missing management routes (404 instead of success/validation/authentication/authorization outcomes). After implementation all **22 passed**.
+- Added facade/screen/guard/menu tests against compiling feature stubs and the old root navigation. From `frontend/`, `npm test -- --watch=false`: **19 failed, 45 passed**. Failures showed missing feature HTTP requests, management forms/menu, and session-restoring administrator guard. After implementation and correcting test Problem Details fixtures/browser input sanitization assumptions, all initial **64 passed**. Supplemental cases bring the final total to **72**.
+- Added malformed-success-list coverage before hardening the facade: targeted facade run produced **1 failed, 9 passed** (`null` reached presentation). Added structural parsing; the case now passes with safe fallback/retry behavior.
+- The real PostgreSQL race test initially passed endpoint/constraint behavior. Adding default-log assertions then produced **1 failed** case because EF logged raw duplicate-key exceptions before feature translation. Suppressed the known EF raw failure diagnostic events and reran the same provider test: **1 passed**, including absent raw uniqueness text/submitted names/passwords.
+
+### Completed checks
+
+- Final default `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`: **146 passed, 3 PostgreSQL opt-in cases skipped**.
+- Same command with `AUTH_TEST_CONNECTION` supplied privately: **149 passed, 0 failed/skipped**. This run also forced inherited bootstrap enablement with empty credentials; ordinary test factories still opted out, and dedicated fixtures retained explicit control.
+- PostgreSQL migrations applied to isolated databases. Barriers force eight create requests past their pre-checks: exactly **one 201 and seven safe 409s**. A second barrier forces two rename UPDATEs after pre-checks: exactly **one 200 and one safe 409**, with the losing row's name unchanged. Concurrent rename/delete leaves the original row deleted and hidden; concurrent delete yields one 204 and one 404. Deleted-name reuse produces a different ID. The active-name partial unique index remains authoritative.
+- Default HTTP tests cover administrator CRUD, anonymous 401 and regular/editor 403 for every management operation, no redirects/no-cache responses, CSRF on every mutation, UTF-16/control/trim validation, normalized conflicts, malformed/null binding, soft-delete persistence, repeat deletion, and no rename resurrection. Domain/service/DI tests cover validated immutable names, Unicode/FEFF whitespace parity, scoped boundaries, exact cancellation-token forwarding, and no persistence call for already-cancelled application work.
+- From `frontend/`, final `npm test -- --watch=false`: **72 passed across 10 files**. Covers administrator menu visibility, guard waiting/direct-link session restoration/fail-closed behavior, restoration deduplication, CRUD/CSRF, duplicate suppression, safe known/network/malformed errors, 401/403 clearing/write blocking, cancellation, form input preservation, confirmation, text-only names, and backend-matching name semantics. Existing registration/login/home/parser tests remain green.
+- `dotnet build WorldEventAlerts.slnx --configuration Release --no-restore`: **passed, 0 warnings/errors**. `dotnet format` applied and `--verify-no-changes --no-restore` passed.
+- Frontend `npm run build`: **passed within configured budgets** (initial bundle about 421 kB raw). Prettier applied to all changed/new frontend files; final formatting checks passed.
+- `dotnet ef migrations has-pending-model-changes --project backend/WorldEventAlerts.Api --configuration Release --no-build`: **no pending model changes**. Reviewed `20261030230146_AddEventTypes`: UUID ID, bounded names, nullable UTC deletion time, and active-only unique normalized-name index; no Identity schema change.
+- Explicit `dotnet ef database update --project backend/WorldEventAlerts.Api --configuration Release --no-build -- --environment Development` with bootstrap disabled applied `AddEventTypes` to the ordinary development database. No startup auto-migration or ordinary account/type seeding was introduced.
+- A temporary Node HTTP harness started the actual Release API and Angular development server against a separately migrated PostgreSQL smoke database with ephemeral bootstrap credentials. Through the real `/api` proxy it verified anonymous 401, regular-only registration despite submitted privilege fields, regular login/403 list and mutation denial, administrator login/current-user role, missing-CSRF rejection, trimmed create, safe duplicate conflict, renamed listing, soft-delete disappearance, deleted-row rename 404, and name reuse under a new ID. `/admin/event-types` served the application shell; the ephemeral password was absent from captured API logs. Owned host processes stopped and the smoke database was dropped.
+- Cleanup query confirmed **zero leftover auth/bootstrap/event-type test/smoke databases**, **zero ordinary development accounts**, and **zero ordinary development event types**.
+- Coordinator reviewed the controller/service/store/domain, shared antiforgery extraction, migration/snapshot, guard/session-restoration changes, facade/form behavior, and diffs. A delegated read-only review reached its round limit without a conclusion; it is not counted as a completed independent review.
+- Relative documentation links, tracked/new-file whitespace, ignored local configuration, and changed/new-file local-secret checks passed. Local LF-to-CRLF conversion warnings remain non-failing.
+
+### Limitations and review status
+
+- No browser-driven end-to-end, visual, real HTTPS, reverse-proxy, or multi-instance production check was run. DOM tests verify menu/forms/guard behavior; live HTTP verifies actual hosting/proxy/cookies, not full browser enforcement. The harness is temporary local validation tooling, not a committed E2E suite.
+- Forced PostgreSQL races cover this feature's uniqueness/update rules, not arbitrary provider failures, crashes, or future subscribe/delete/publication races. Cancellation tests verify forwarding/cooperative entry behavior, not undo of committed writes or real socket-disconnect timing.
+- Name uniqueness is invariant-uppercase equality after the documented trim/control validation; no Unicode canonical-equivalence matching is claimed. SQLite is not evidence for PostgreSQL concurrency correctness.
+- Subscription-blocked deletion and publication-time type-name snapshots remain unimplemented integration obligations. There is no subscription table, fake restriction store, event browser, role-management API, or history rewrite.
+- EF failure diagnostic suppression is a deliberate loss of low-level app-log detail, not a global secret sanitizer. No dependencies changed, so package installation/vulnerability scans were not repeated.
+- Stopped for review without staging, committing, or pushing.
+
+## Increment 4 commit authorization
+
+After review of the completed development-admin bootstrap and event-type backend/admin-menu/UI, the user explicitly authorized creating a commit or commits and pushing them. The implementation evidence above remains unchanged; commit preparation updates authorization/status documentation only. Earlier review-stop notes are historical records. The completed changes are grouped into one cohesive feature commit because the administrator provisioning, shared HTTP extraction, event-type feature, migration, UI, tests, and documentation form the delivered increment.
+
 ## Future increment records
 
 Record each increment's scope, test-first failure and expected reason, passing checks, commands actually run, limitations, and review status. Do not record planned checks as completed.

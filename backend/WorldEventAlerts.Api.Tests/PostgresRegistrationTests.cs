@@ -27,7 +27,7 @@ public sealed class PostgresRegistrationTests
         {
             settings.Database = databaseName;
             settings.Pooling = false;
-            await using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            await using var application = new TestApplication().WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Development");
                 builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(

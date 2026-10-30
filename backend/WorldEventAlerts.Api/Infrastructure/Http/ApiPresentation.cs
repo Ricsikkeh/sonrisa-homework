@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using WorldEventAlerts.Api.Infrastructure.Errors;
 
-namespace WorldEventAlerts.Api.Features.Accounts.Controllers;
+namespace WorldEventAlerts.Api.Infrastructure.Http;
 
-internal static class AccountPresentation
+internal static class ApiPresentation
 {
-    public static IServiceCollection AddAccountPresentation(this IServiceCollection services)
+    public static IServiceCollection AddApiPresentation(this IServiceCollection services)
     {
-        services.AddScoped<AccountAntiforgeryFilter>();
+        services.AddScoped<ApiAntiforgeryFilter>();
         services.AddControllers().ConfigureApiBehaviorOptions(options =>
         {
             // Retain the established safe Problem Details contract instead of MVC defaults.

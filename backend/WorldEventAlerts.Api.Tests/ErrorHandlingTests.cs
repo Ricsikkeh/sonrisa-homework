@@ -111,14 +111,14 @@ public sealed class ErrorHandlingTests
     [Fact]
     public async Task Diagnostic_routes_are_not_registered_in_the_application()
     {
-        await using var application = new WebApplicationFactory<Program>();
+        await using var application = new TestApplication();
         using var client = application.CreateClient();
         using var response = await client.GetAsync("/_tests/throw");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     private static WebApplicationFactory<Program> CreateApplication(CapturedLogs logs, string environment = "Production") =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        new TestApplication().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(environment);
             builder.ConfigureLogging(logging => logging.AddProvider(logs));

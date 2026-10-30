@@ -343,7 +343,7 @@ public sealed class AuthenticationTests
         public override DateTimeOffset GetUtcNow() => Now;
     }
 
-    private sealed class AuthApplication(string environment = "Development") : WebApplicationFactory<Program>
+    private sealed class AuthApplication(string environment = "Development") : TestApplication
     {
         private readonly SqliteConnection connection = new("Data Source=:memory:");
         public TestClock Clock { get; } = new();
@@ -352,6 +352,7 @@ public sealed class AuthenticationTests
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            base.ConfigureWebHost(builder);
             connection.Open();
             builder.UseEnvironment(environment);
             builder.ConfigureLogging(logging => logging.AddProvider(Logs));

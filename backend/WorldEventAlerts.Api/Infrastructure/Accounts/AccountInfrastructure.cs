@@ -11,6 +11,7 @@ internal static class AccountInfrastructure
         services.AddIdentity<IdentityUser, IdentityRole>()
             .AddEntityFrameworkStores<AlertsDbContext>();
         services.AddScoped<IAccountIdentity, IdentityAccountGateway>();
+        services.AddHostedService<DevelopmentAdminBootstrap>();
         services.ConfigureApplicationCookie(options =>
         {
             options.Cookie.Name = "wea.session";

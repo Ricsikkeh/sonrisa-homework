@@ -8,6 +8,8 @@ Increment 1 is implemented and validated; see [VALIDATION.md](VALIDATION.md) for
 
 The user subsequently approved increment 3, limited to registration/login, frontend forms, and current-user restoration with the proposed authentication/security controls and standard Identity password-policy defaults. Increment 3 and its controller/layering, DI, validation, authorization, and cancellation follow-ups are implemented and validated. After review, the user explicitly authorized committing these changes with a descriptive message and pushing them. See [authentication details](AUTHENTICATION.md) and [validation evidence](VALIDATION.md).
 
+The user subsequently approved the [event-type management plan](EVENT-TYPES.md), including its development-admin bootstrap prerequisite and naming/concurrency choices. The bootstrap prerequisite is implemented and validated. The user then explicitly requested continuing with event-type management, its administrator menu, and an accounts-style backend. That slice is now implemented and validated; see [bootstrap setup](ADMIN-BOOTSTRAP.md) and [event-type behavior](EVENT-TYPES.md). After review, the user explicitly authorized committing and pushing the completed changes.
+
 ## Increment 1: Local-stack scaffold — approved scope
 
 ### Scope
@@ -86,6 +88,10 @@ Authentication mappings, business validation/error codes, and delivery logging r
 Excluded: logout, subscriptions, destinations, events, event types, history, administration/bootstrap, and the general idempotency mechanism. No commit before explicit approval.
 
 Acceptance: successful regular-only registration without automatic login; successful cookie login/restoration; safe duplicate-name/credential/validation outcomes; CSRF rejection; documented/tested session lifetime; working forms; existing health/error behavior preserved. Stop for review after reporting actual checks.
+
+## Increment 4: event-type management — approved plan
+
+See [event-type management plan](EVENT-TYPES.md) for the approved administrator-bootstrap prerequisite, event-type domain/API/UI scope, naming and concurrency choices, and test-first acceptance sequence. The bootstrap prerequisite and the subsequently requested event-type backend/admin-menu/UI slice are implemented and validated. The user subsequently authorized committing and pushing this completed increment. Subscriptions, publication, history, and general role management remain outside this increment; their integration obligations are called out explicitly.
 
 ## Later milestones: proposed sequencing, not increment approval
 

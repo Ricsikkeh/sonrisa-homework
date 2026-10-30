@@ -7,6 +7,19 @@
     }
     @case ('authenticated') {
       <span role="status">Signed in as {{ auth.user()?.userName }}</span>
+      @if (auth.user()?.roles?.includes('Administrator')) {
+        <button
+          mat-button
+          type="button"
+          aria-label="Administration"
+          [matMenuTriggerFor]="adminMenu"
+        >
+          Administration
+        </button>
+        <mat-menu #adminMenu="matMenu">
+          <a mat-menu-item routerLink="/admin/event-types">Event types</a>
+        </mat-menu>
+      }
     }
     @case ('anonymous') {
       <a mat-button routerLink="/login">Sign in</a>

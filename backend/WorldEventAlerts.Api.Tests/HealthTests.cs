@@ -37,7 +37,7 @@ public sealed class HealthTests
     }
 
     private static WebApplicationFactory<Program> CreateApplication(string? connectionString) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        new TestApplication().WithWebHostBuilder(builder =>
             builder.ConfigureAppConfiguration((_, configuration) =>
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {

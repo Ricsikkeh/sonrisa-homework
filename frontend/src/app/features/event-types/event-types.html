@@ -1,0 +1,125 @@
+<section aria-labelledby="event-types-title">
+  <h1 id="event-types-title">Event types</h1>
+  <p>Create, rename, and delete the event types available for future subscriptions and events.</p>
+  @if (notice()) {
+    <p role="status">{{ notice() }}</p>
+  }
+  @if (facade.error()) {
+    <p role="alert">{{ facade.error() }}</p>
+    <button
+      mat-button
+      type="button"
+      (click)="facade.load()"
+      [disabled]="facade.busy() || facade.loading()"
+    >
+      Reload list
+    </button>
+  }
+  @if (!facade.accessDenied()) {
+    <form [formGroup]="createForm" (ngSubmit)="create()" aria-label="Create event type">
+      <mat-form-field>
+        <mat-label>New event-type name</mat-label>
+        <input
+          matInput
+          name="newName"
+          formControlName="name"
+          [readonly]="facade.busy() || facade.loading()"
+        />
+        @if (createForm.controls.name.invalid && createForm.controls.name.touched) {
+          <mat-error>Use 1–100 characters without control characters.</mat-error>
+        }
+      </mat-form-field>
+      <button
+        mat-flat-button
+        type="submit"
+        [disabled]="createForm.invalid || facade.busy() || facade.loading()"
+      >
+        Create event type
+      </button>
+    </form>
+  }
+  @if (facade.loading()) {
+    <p role="status">Loading event types…</p>
+  } @else if (!facade.error() && facade.items().length === 0) {
+    <p>No event types yet.</p>
+  }
+  <ul aria-label="Active event types">
+    @for (item of facade.items(); track item.id) {
+      <li>
+        <strong>{{ item.name }}</strong>
+        @if (editing() === item.id) {
+          <form
+            data-edit
+            [formGroup]="renameForm"
+            (ngSubmit)="rename(item.id)"
+            aria-label="Rename event type"
+          >
+            <mat-form-field>
+              <mat-label>Event-type name</mat-label>
+              <input
+                matInput
+                name="renameName"
+                formControlName="name"
+                [readonly]="facade.busy() || facade.loading()"
+              />
+              @if (renameForm.controls.name.invalid && renameForm.controls.name.touched) {
+                <mat-error>Use 1–100 characters without control characters.</mat-error>
+              }
+            </mat-form-field>
+            <button
+              mat-button
+              type="submit"
+              [disabled]="renameForm.invalid || facade.busy() || facade.loading()"
+            >
+              Save name
+            </button>
+            <button mat-button type="button" (click)="editing.set(null)" [disabled]="facade.busy()">
+              Cancel rename
+            </button>
+          </form>
+        } @else {
+          <button
+            mat-button
+            type="button"
+            data-action="rename"
+            (click)="edit(item)"
+            [disabled]="facade.busy() || facade.loading()"
+          >
+            Rename
+          </button>
+          <button
+            mat-button
+            type="button"
+            data-action="delete"
+            (click)="editing.set(null); deleting.set(item.id)"
+            [disabled]="facade.busy() || facade.loading()"
+          >
+            Delete
+          </button>
+        }
+        @if (deleting() === item.id) {
+          <div role="group" aria-label="Confirm event-type deletion">
+            <p>Delete this event type? It will no longer be available for new use.</p>
+            <button
+              mat-button
+              type="button"
+              data-action="confirm-delete"
+              (click)="confirmDelete(item.id)"
+              [disabled]="facade.busy() || facade.loading()"
+            >
+              Confirm delete
+            </button>
+            <button
+              mat-button
+              type="button"
+              (click)="deleting.set(null)"
+              [disabled]="facade.busy()"
+            >
+              Cancel deletion
+            </button>
+          </div>
+        }
+      </li>
+    }
+  </ul>
+</section>

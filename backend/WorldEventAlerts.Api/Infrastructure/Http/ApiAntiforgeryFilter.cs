@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using WorldEventAlerts.Api.Infrastructure.Errors;
 
-namespace WorldEventAlerts.Api.Features.Accounts.Controllers;
+namespace WorldEventAlerts.Api.Infrastructure.Http;
 
 // Runs after binding/automatic model-state rejection, like the previous endpoint filter.
-public sealed class AccountAntiforgeryFilter(IAntiforgery antiforgery) : IAsyncActionFilter
+public sealed class ApiAntiforgeryFilter(IAntiforgery antiforgery) : IAsyncActionFilter
 {
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {

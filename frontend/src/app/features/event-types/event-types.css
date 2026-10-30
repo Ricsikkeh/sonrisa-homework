@@ -1,0 +1,27 @@
+:host {
+  display: block;
+  max-width: 60rem;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+form {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+mat-form-field {
+  min-width: min(22rem, 100%);
+}
+ul {
+  padding: 0;
+  list-style: none;
+}
+li {
+  padding: 1rem 0;
+  border-bottom: 1px solid #d6deeb;
+  overflow-wrap: anywhere;
+}
+[role='alert'] {
+  color: #a31818;
+}

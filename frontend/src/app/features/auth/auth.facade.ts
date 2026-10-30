@@ -28,12 +28,18 @@ export class AuthFacade {
   private readonly submitting = signal(false);
   private readonly currentError = signal<string | null>(null);
   private restoreRequest?: Subscription;
+  private restorationStarted = false;
   readonly user = this.currentUser.asReadonly();
   readonly status = this.currentStatus.asReadonly();
   readonly busy = this.submitting.asReadonly();
   readonly error = this.currentError.asReadonly();
 
+  ensureRestored(): void {
+    if (!this.restorationStarted) this.restore();
+  }
+
   restore(): void {
+    this.restorationStarted = true;
     this.restoreRequest?.unsubscribe();
     this.currentStatus.set('loading');
     this.restoreRequest = this.http.get<AuthUser>('/api/auth/me').subscribe({
@@ -82,6 +88,7 @@ export class AuthFacade {
           if (action === 'login') {
             // A delayed startup /me response must not overwrite a successful login.
             this.restoreRequest?.unsubscribe();
+            this.restorationStarted = true;
             this.currentUser.set(user);
             this.currentStatus.set('authenticated');
           }

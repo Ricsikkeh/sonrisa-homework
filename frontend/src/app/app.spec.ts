@@ -5,6 +5,29 @@ import { provideRouter } from '@angular/router';
 import { App } from './app';
 
 describe('App', () => {
+  for (const roles of [[], ['Editor'], ['Administrator']]) {
+    it(`shows the administration menu only for administrators (${roles})`, async () => {
+      await TestBed.configureTestingModule({
+        imports: [App],
+        providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+      const http = TestBed.inject(HttpTestingController);
+      http.expectOne('/api/auth/me').flush({ id: 'a', userName: 'alice', roles });
+      fixture.detectChanges();
+      const menu = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        'button[aria-label="Administration"]',
+      );
+      expect(menu !== null).toBe(roles.includes('Administrator'));
+      if (menu) {
+        menu.click();
+        fixture.detectChanges();
+        expect(document.querySelector('a[href="/admin/event-types"]')).not.toBeNull();
+      }
+      http.verify();
+    });
+  }
   it('renders anonymous navigation and offers retry when session restoration is unavailable', async () => {
     await TestBed.configureTestingModule({
       imports: [App],
