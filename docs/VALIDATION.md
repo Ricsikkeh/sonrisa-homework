@@ -75,6 +75,39 @@ Feature cases cover liveness GET/loading/success, HTTP failure, unexpected/null 
 - Checked all indexed file paths and contents: no generated dependencies/build output, local `.env`, or actual local database password is staged. The example password and unreachable-database test value are deliberately non-secret placeholders.
 - No later implementation increment is approved; stop for review after the authorized initialization commit.
 
+## Increment 2: Error handling and logging foundation
+
+Authorization: user accepted the proposed foundation as a separate implementation increment. No authentication, business-rule mapping, delivery processing, production logging infrastructure, or commit was authorized.
+
+### Test-first evidence
+
+**Backend:** before adding the middleware/handler, `dotnet test WorldEventAlerts.slnx --verbosity minimal` ran 10 cases: 6 failed and 4 passed. The new failure cases observed unhandled exceptions/cancellation in Production, an HTML developer error response in Development, and empty 400/404 responses rather than safe Problem Details. Existing health cases and the absence of a public diagnostic route passed. After implementation, all 10 passed. Supplemental status/BadHttpRequest coverage increased the final suite to 18 passing cases.
+
+**Frontend:** incomplete delegated parser work was inspected and did not initially compile under the project's strict index-signature rules. The coordinator replaced the function with a compiling generic-fallback stub and ran `npm test -- --watch=false --include='src/app/shared/http/api-error.spec.ts'`: 14 of 16 cases failed for the expected missing classification/metadata behavior; 2 generic-fallback cases passed. After completing the parser, all 16 passed. Supplemental malformed-body/identifier-boundary cases increased parser coverage to 24 cases; the full suite has 32 passing cases.
+
+### Completed checks
+
+- `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`: 18 passed, 0 failed/skipped. Includes existing health contracts, safe correlated 500s in Production/Development and JSON/HTML Accept scenarios, no sentinel secret in tested responses/default captured logs, one Error record without a raw exception, request-abort cancellation, non-aborted cancellation, safe empty-status responses, safe BadHttpRequest summaries, and no production diagnostic route.
+- `dotnet build WorldEventAlerts.slnx --configuration Release --no-restore`: passed, 0 warnings/errors.
+- `dotnet format WorldEventAlerts.slnx --no-restore`, followed by `--verify-no-changes --no-restore`: passed.
+- From `frontend/`, `npm test -- --watch=false`: 32 passed across 4 files, including all 8 existing home/shell cases.
+- `npm run build`: passed within CLI bundle budgets.
+- Prettier applied to the 2 new frontend files; `npx prettier --check src/app/shared/http/api-error.ts src/app/shared/http/api-error.spec.ts`: passed.
+- A temporary Node.js harness started the actual Release API on a dynamically allocated loopback port in Production, with an empty connection-string override. It verified liveness 200, unchanged unavailable readiness 503, safe 404 Problem Details even for HTML Accept, safe 405 for POST to liveness, absence of the test diagnostic route, and parseable JSON console records with UTC timestamps. It stopped the API process afterward. No credentials or local database configuration were read/printed by the harness.
+- A completed independent four-source-file review identified no concrete issues; it noted the framework-owned cancellation boundary documented in [ERROR-HANDLING.md](ERROR-HANDLING.md). The coordinator reviewed the implementation and expanded edge-case coverage.
+- Documentation-link check: all 18 relative links across 8 Markdown files resolve.
+- `git diff --check` plus no-index whitespace checks for every untracked file: passed. Local LF-to-CRLF conversion warnings are non-failing.
+
+### Limitations and review status
+
+- Cancellation coverage sets an aborted request token in the in-process test host; it is not a real socket-disconnect test. Clients that have disconnected may receive no response at all.
+- Sentinel tests verify the exercised request paths and default captured logs, not arbitrary third-party loggers, logging overrides, transport/startup failures, or streaming after a response has started. No general-purpose log sanitizer is claimed.
+- No live database-success/persistence/proxy smoke test or browser-driven end-to-end test was repeated; those components were unchanged. The real-host smoke test deliberately used unavailable readiness.
+- No package dependencies changed; dependency installation and vulnerability scans were not repeated in this increment.
+- The frontend parser is a tested utility for future facades; the existing health facade intentionally retains its availability-only behavior. Field-level validation contracts and feature UI mapping remain future feature work.
+- No authentication behavior is implemented. Tests using empty 401/403 responses check formatting only, not login or authorization.
+- Implementation stopped for review without a commit. The user subsequently explicitly authorized staging, committing with a descriptive message, and pushing this increment.
+
 ## Future increment records
 
 Record each increment's scope, test-first failure and expected reason, passing checks, commands actually run, limitations, and review status. Do not record planned checks as completed.

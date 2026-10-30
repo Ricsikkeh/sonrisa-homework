@@ -4,7 +4,7 @@
 
 The [MVP](MVP.md) is agreed. The user approved expanding increment 1 to the local-stack scaffold, including a single backend application project, one xUnit test project, frontend, database, and the initialization commit.
 
-Increment 1 is implemented and validated; see [VALIDATION.md](VALIDATION.md) for actual results and limitations. No later business increment is approved by the authorization for its initialization commit.
+Increment 1 is implemented and validated; see [VALIDATION.md](VALIDATION.md) for actual results and limitations. The user subsequently approved increment 2: the error-handling/logging foundation described below. Increment 2 is implemented and validated. After review, the user explicitly authorized staging, committing, and pushing these changes. No accounts, business features, or production infrastructure are authorized by that approval.
 
 ## Increment 1: Local-stack scaffold — approved scope
 
@@ -48,6 +48,29 @@ Authentication, roles, event types, subscriptions, and notification processing a
 - API runs on localhost:5200; Angular on localhost:4200 with a same-origin `/api/**` development proxy.
 - PostgreSQL 18 uses a named volume and an ignored local `.env`; API connection strings use development user secrets or environment variables.
 - Business modules and their internal Clean Architecture boundaries will arrive with actual features, not empty scaffolding.
+
+## Increment 2: Error handling and logging — approved scope
+
+### Scope
+
+- Built-in ASP.NET Core Problem Details, a centralized exception handler, and trace correlation.
+- Safe structured console logging, with one application-owned record per handled unexpected request failure and no raw exception text.
+- Safe default Problem Details for empty error responses, preserving existing health response contracts.
+- A small shared frontend error parser with safe local messages and malformed/non-JSON/network fallbacks; no new UI scaffolding or global error interceptor.
+- Decision, policy, production-gap, and actual validation documentation updates.
+
+Authentication mappings, business validation/error codes, and delivery logging remain part of their relevant feature increments. See [error-handling and logging policy](ERROR-HANDLING.md).
+
+### Acceptance criteria and validation
+
+1. Observe expected test failures before implementing new request/error-parser behavior.
+2. Unexpected request failures return safe HTTP 500 Problem Details in Production and Development, with no diagnostic disclosure.
+3. Response trace IDs match the corresponding single application error log; sentinel secrets are absent from tested default logs/responses.
+4. Request cancellation is not treated as an unexpected application failure; cancellation without request abort still is.
+5. Existing health contracts and frontend availability behavior remain unchanged.
+6. The shared frontend parser handles valid problems, malformed/empty/non-JSON responses, and network/timeouts without displaying arbitrary server text.
+7. Run backend/frontend tests and builds, formatting/whitespace checks, and documentation-link checks; record actual evidence and limitations.
+8. Stop for review without committing.
 
 ## Later milestones: proposed sequencing, not increment approval
 

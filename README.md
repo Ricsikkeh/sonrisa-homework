@@ -4,7 +4,7 @@ A proof of concept for event-type subscriptions and simulated email/Slack notifi
 
 ## Current status
 
-The local-stack scaffold is implemented: a .NET API, an Angular/Material home feature, and PostgreSQL in Docker with EF Core connectivity. The home screen displays API liveness through a feature facade.
+The local-stack scaffold is implemented: a .NET API, an Angular/Material home feature, and PostgreSQL in Docker with EF Core connectivity. The home screen displays API liveness through a feature facade. An error-handling/logging foundation adds safe correlated API errors, structured console logs, and a shared frontend error parser.
 
 Accounts, business modules, subscriptions, event publication, administration, and simulated notifications are **not implemented yet**. No real notifications are sent.
 
@@ -51,7 +51,9 @@ The API listens at `http://localhost:5200`:
 - `GET /health` returns HTTP 200 with `{"status":"ok"}`. This checks liveness only, even without a database connection string.
 - `GET /health/ready` uses EF Core to connect to PostgreSQL and returns HTTP 200 with `{"status":"ready"}`, or HTTP 503 with `{"status":"unavailable"}`. It exposes no connection details and does not check a business schema.
 
-There are no business tables or migrations in this increment. The Compose image creates the `alerts` database.
+There are no business tables or migrations yet. The Compose image creates the `alerts` database.
+
+Unexpected handled API failures return safe Problem Details with an error code and trace ID, not a developer exception page. The matching application error log contains allowlisted metadata, not the raw exception. Console logs use JSON/UTC timestamps. The health responses above are unchanged; see [error handling and logging](docs/ERROR-HANDLING.md) for the policy and boundaries.
 
 ### 3. Frontend (another terminal)
 
@@ -100,6 +102,7 @@ Automated tests do not require Docker. Real database connectivity and the runnin
 - `backend/WorldEventAlerts.Api/`: one deployable backend; EF configuration is infrastructure, with business module boundaries introduced alongside approved features.
 - `backend/WorldEventAlerts.Api.Tests/`: xUnit request-pipeline tests.
 - `frontend/src/app/features/home/`: home presentation and feature facade.
+- `frontend/src/app/shared/http/`: safe error parsing for future feature facades.
 - `compose.yaml`: local PostgreSQL only; frontend/backend run on the host.
 
 ## Project documents
@@ -107,5 +110,6 @@ Automated tests do not require Docker. Real database connectivity and the runnin
 - [Agreed MVP](docs/MVP.md)
 - [Decisions](docs/DECISIONS.md)
 - [Implementation plan and workflow](docs/PLAN.md)
+- [Error handling and logging](docs/ERROR-HANDLING.md)
 - [Production gaps and exclusions](docs/PRODUCTION-GAPS.md)
 - [Validation record](docs/VALIDATION.md)

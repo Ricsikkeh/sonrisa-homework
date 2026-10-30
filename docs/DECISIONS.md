@@ -22,6 +22,8 @@ Status meanings: **Agreed** reflects explicit product/technology approval; **Pro
 | D14 | Publication-time event-type names in history; masked destinations and safe error summaries | Preserve historical context without exposing secrets or raw exceptions. |
 | D15 | Per-user admin inspection, not global search or subscription modification | Keep administration focused on explicitly required actions. |
 | D16 | Small approved increments, TDD for business rules, review stops, explicit commit approval | Record actual validation and limitations; do not implement production infrastructure without agreement. |
+| D17 | Built-in Problem Details and centralized unexpected-request handling; explicit outcomes for expected business failures | Stable error codes and trace correlation, without raw diagnostic disclosure or a custom response envelope. |
+| D18 | Structured `ILogger<T>` console logs with safe allowlisted metadata; feature-owned frontend error handling | One owner per failure; no blanket exception/body logging, universal error snackbar, or automatic mutation retries. |
 
 ## Approved technical choices for increment 1
 
@@ -46,6 +48,17 @@ Use module folders and dependency direction for Clean Architecture boundaries as
 - Angular core 22.2.4, CLI/Material/CDK 22.2.5, Npgsql EF provider 10.0.2 (EF Core 10.0.4), and PostgreSQL 18 are used. The npm lockfile records resolved frontend dependencies.
 - PostgreSQL runs alone in Compose; frontend/backend run on the host. Local configuration is ignored, and the database port is bound to loopback.
 - Liveness is independent of PostgreSQL. A separate safe readiness endpoint verifies EF Core connectivity without claiming a business schema exists.
+
+## Approved technical choices for increment 2
+
+The user accepted the error-handling/logging foundation as a separate increment. [ERROR-HANDLING.md](ERROR-HANDLING.md) records the contract, status conventions, logging levels/privacy policy, frontend parsing behavior, and deferred feature work.
+
+- Use .NET 10 `IExceptionHandler` and Problem Details; retain the explicit health JSON contract.
+- Use the existing logging stack, with JSON console formatting and UTC timestamps; no Serilog, collector, monitoring service, or new package dependency.
+- Correlate safe unexpected-error responses and application logs through a consistent trace ID. Do not trust an arbitrary incoming request-ID header.
+- Implement a pure shared Angular error parser; keep expected API failures in feature facades. No change to the existing health facade's intentional unavailable state.
+- Authentication behavior, business-rule mappings, field validation, and delivery processing remain unimplemented and require their own increments.
+- This implementation approval does not authorize a commit.
 
 ## Deferred implementation details
 
