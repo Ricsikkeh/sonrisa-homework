@@ -1,0 +1,27 @@
+:host {
+  display: block;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+h1 {
+  margin-top: 0;
+  line-height: 1.2;
+}
+
+.intro {
+  margin-bottom: 2rem;
+}
+
+mat-card-content {
+  padding-top: 1rem;
+}
+
+mat-card-actions {
+  padding: 0 1rem 1rem;
+}
+
+.notice {
+  margin-top: 2rem;
+}

@@ -1,0 +1,16 @@
+@import '@angular/material/prebuilt-themes/azure-blue.css';
+
+html {
+  color-scheme: light;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f7f9fc;
+  color: #172033;
+}
+
+body {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+}

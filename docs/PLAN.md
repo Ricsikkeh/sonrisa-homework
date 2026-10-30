@@ -2,47 +2,57 @@
 
 ## Current status
 
-The MVP decisions are consolidated in [MVP.md](MVP.md). This initial increment saves planning documentation only; no application implementation is authorized by saving these files.
+The [MVP](MVP.md) is agreed. The user approved expanding increment 1 to the local-stack scaffold, including a single backend application project, one xUnit test project, frontend, database, and the initialization commit.
 
-The implementation sequence below is proposed. Before each implementation increment, agree on its scope, acceptance criteria, validation approach, and significant technical decisions.
+Increment 1 is implemented and validated; see [VALIDATION.md](VALIDATION.md) for actual results and limitations. No later business increment is approved by the authorization for its initialization commit.
 
-## Proposed increment 1: Backend foundation and executable API check
+## Increment 1: Local-stack scaffold — approved scope
 
 ### Scope
 
-- Establish a .NET 10 ASP.NET Core API project and one test project.
-- Add a minimal public `GET /health` liveness endpoint.
-- Test the endpoint through the real ASP.NET Core request pipeline using an in-process host.
-- Document local run/test instructions and update planning/validation evidence.
+- .NET 10 ASP.NET Core API, one application project and one xUnit integration-test project.
+- Minimal public API liveness endpoint.
+- Angular 22/Material 22 shell and home feature; a facade handles API status loading.
+- PostgreSQL in Docker Compose with persistent local storage and EF Core/Npgsql configuration.
+- Verified EF Core connectivity; no placeholder business tables.
+- Frontend development proxy, ignored local configuration, example configuration, and startup instructions.
+- Updated decision, planning, production-gap, and validation evidence.
 
-Proposed choices requiring approval: one backend application project with module folders introduced as needed, and xUnit with ASP.NET Core's in-process test host. See [DECISIONS.md](DECISIONS.md).
+Authentication, roles, event types, subscriptions, and notification processing are outside this increment.
 
 ### Acceptance criteria
 
-1. The backend targets .NET 10 and builds successfully.
-2. `GET /health` returns HTTP 200 and a small documented JSON response without sensitive diagnostics.
-3. An automated integration test exercises the endpoint through the request pipeline.
-4. Local startup and test commands are documented.
-5. Documentation distinguishes agreed decisions, deferred details, and production gaps.
-6. No business features, unnecessary abstractions, external integrations, or production infrastructure are introduced.
-
-Liveness does not claim database or application readiness. Angular, Material, PostgreSQL, EF Core, Identity, and notification processing remain required but are outside this increment.
+1. Backend builds and automated request-pipeline tests pass.
+2. Frontend builds and facade/presentation tests pass.
+3. Frontend displays backend availability through its facade.
+4. PostgreSQL starts successfully; EF Core connectivity is verified.
+5. Database storage uses a persistent local volume; its published port is bound to localhost.
+6. No local secrets/passwords are committed; example configuration contains placeholders only.
+7. Endpoint and frontend feature behavior tests are written and observed failing before implementation.
+8. Startup instructions, actual validation results, and limitations are documented.
 
 ### Validation approach
 
-1. Verify the available SDK/toolchain; report missing prerequisites rather than substitute framework versions.
-2. Write the endpoint test before implementing the endpoint.
-3. Run it and verify the expected failure.
-4. Implement the endpoint and rerun the test.
-5. Run the backend build and full available test suite.
-6. Start the API and perform a direct HTTP smoke check.
-7. Report actual results and limitations, then stop for review.
+- Verify SDK, Node/npm, required framework versions, and Docker availability.
+- Observe expected red results for HTTP endpoints and home-feature behavior, then implement and rerun.
+- Build/test the backend and frontend; verify clean frontend installation with `npm ci`.
+- Start PostgreSQL, verify healthy status and persistence across restart.
+- Run API/database readiness and frontend proxy HTTP smoke checks against the actual local services.
+- Check dependency vulnerabilities, formatting, documentation links, Git whitespace, and ignored local configuration.
+- Record actual results and limitations, make the authorized scaffold commit, and stop for review.
+
+### Implemented technical details
+
+- `/health` is database-independent liveness: HTTP 200, `{"status":"ok"}`.
+- `/health/ready` connects through EF Core: HTTP 200, `{"status":"ready"}`, or HTTP 503, `{"status":"unavailable"}`. It does not check a future business schema.
+- API runs on localhost:5200; Angular on localhost:4200 with a same-origin `/api/**` development proxy.
+- PostgreSQL 18 uses a named volume and an ignored local `.env`; API connection strings use development user secrets or environment variables.
+- Business modules and their internal Clean Architecture boundaries will arrive with actual features, not empty scaffolding.
 
 ## Later milestones: proposed sequencing, not increment approval
 
 | Milestone | Deliverable and acceptance focus |
 | --- | --- |
-| Local stack | Angular/Material frontend, PostgreSQL/EF Core integration, and reproducible local startup, split into small increments. |
 | Accounts and access | Registration/login, authorized role boundaries, safe bootstrap, and final-administrator protection. |
 | Event types and subscriptions | Admin type management, user destinations/subscriptions, uniqueness, and deletion restrictions. |
 | Publication vertical slice | Immutable event publication, publication-time matching/snapshots, and recorded simulated deliveries. |
@@ -53,6 +63,8 @@ Liveness does not claim database or application readiness. Angular, Material, Po
 Milestones may be reordered when planning their increments. They are not permission to implement the whole milestone at once.
 
 ## Development workflow
+
+Before each implementation increment, agree on scope, acceptance criteria, validation approach, and significant technical decisions.
 
 For each approved business-rule/behavior increment:
 
@@ -65,7 +77,7 @@ For each approved business-rule/behavior increment:
 At the end of each increment:
 
 - Summarize changes.
-- Record commands/checks actually run and their results, including red/green evidence.
+- Record commands/checks actually run and results, including red/green evidence.
 - Identify limitations, unresolved issues, and production gaps.
 - Stop for review.
-- Commit only after explicit approval, using a message describing the actual change.
+- Commit only after explicit approval, using a message describing the actual change. The user explicitly authorized the increment 1 initialization commit.

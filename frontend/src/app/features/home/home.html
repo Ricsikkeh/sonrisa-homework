@@ -1,0 +1,39 @@
+<h1>World event alerts</h1>
+<p class="intro">Local development scaffold for the alerting POC.</p>
+
+<mat-card appearance="outlined">
+  <mat-card-header>
+    <mat-card-title>Backend connection</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <p role="status" aria-live="polite">
+      @switch (facade.status()) {
+        @case ('loading') {
+          Checking backend…
+        }
+        @case ('available') {
+          Backend available
+        }
+        @case ('unavailable') {
+          Backend unavailable. Check that the API is running, then try again.
+        }
+      }
+    </p>
+    <p>This is a liveness check only; it does not confirm database readiness.</p>
+  </mat-card-content>
+  <mat-card-actions>
+    <button
+      matButton="filled"
+      type="button"
+      (click)="facade.checkAvailability()"
+      [disabled]="facade.status() === 'loading'"
+    >
+      Check again
+    </button>
+  </mat-card-actions>
+</mat-card>
+
+<p class="notice">
+  No real notifications are sent. Account, alert, and simulated delivery features are not
+  implemented yet.
+</p>

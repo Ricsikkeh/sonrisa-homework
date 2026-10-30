@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/WorldEventAlerts.Api.Tests/WorldEventAlerts.Api.Tests.csproj" />
+    <Project Path="backend/WorldEventAlerts.Api/WorldEventAlerts.Api.csproj" />
+  </Folder>
+</Solution>

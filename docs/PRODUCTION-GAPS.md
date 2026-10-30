@@ -2,6 +2,14 @@
 
 This register distinguishes agreed POC limitations from future production concerns. It does not authorize implementing production infrastructure.
 
+## Current implementation status
+
+Increment 1 is a local-stack scaffold only. Identity/login, roles, bootstrap, business entities, publication snapshots, simulated adapters, retry processing, and administrative views remain required MVP work, not completed capabilities.
+
+The API and Angular development server use local HTTP. There are no credential-handling or business endpoints yet. Cookie security and request-forgery protection must be agreed and implemented before account/business features, not postponed merely because this is a POC.
+
+PostgreSQL uses a development database account initialized by the official image and a persistent local volume. This is not a production least-privilege provisioning or backup strategy. Readiness verifies connectivity only, not migrations or a future business schema.
+
 ## Explicit original-assignment limitation
 
 The original assignment calls for notifying users through email and Slack. The agreed MVP uses simulated adapters only: no email is sent and no Slack message is posted. Outcomes must say they are simulated. Real integrations are nice-to-have features requiring separate approval.
