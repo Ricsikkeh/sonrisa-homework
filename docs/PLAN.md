@@ -4,7 +4,9 @@
 
 The [MVP](MVP.md) is agreed. The user approved expanding increment 1 to the local-stack scaffold, including a single backend application project, one xUnit test project, frontend, database, and the initialization commit.
 
-Increment 1 is implemented and validated; see [VALIDATION.md](VALIDATION.md) for actual results and limitations. The user subsequently approved increment 2: the error-handling/logging foundation described below. Increment 2 is implemented and validated. After review, the user explicitly authorized staging, committing, and pushing these changes. No accounts, business features, or production infrastructure are authorized by that approval.
+Increment 1 is implemented and validated; see [VALIDATION.md](VALIDATION.md) for actual results and limitations. The user subsequently approved increment 2: the error-handling/logging foundation described below. Increment 2 is implemented and validated. After review, the user explicitly authorized staging, committing, and pushing these changes. No accounts, business features, or production infrastructure were authorized by that approval.
+
+The user subsequently approved increment 3, limited to registration/login, frontend forms, and current-user restoration with the proposed authentication/security controls and standard Identity password-policy defaults. Increment 3 and its controller/layering, DI, validation, authorization, and cancellation follow-ups are implemented and validated. After review, the user explicitly authorized committing these changes with a descriptive message and pushing them. See [authentication details](AUTHENTICATION.md) and [validation evidence](VALIDATION.md).
 
 ## Increment 1: Local-stack scaffold — approved scope
 
@@ -72,11 +74,24 @@ Authentication mappings, business validation/error codes, and delivery logging r
 7. Run backend/frontend tests and builds, formatting/whitespace checks, and documentation-link checks; record actual evidence and limitations.
 8. Stop for review without committing.
 
+## Increment 3: Registration and login — approved scope
+
+- Identity username/password registration and login backed by an explicit EF migration.
+- Public registration creates regular users only; no idempotency key. Identity normalization and a database unique index prevent duplicate usernames, including concurrent requests.
+- Same-origin cookies, antiforgery protection, API-safe authentication failures, fixed safe form validation/errors, and a minimal current-user endpoint.
+- Angular registration/login forms and root session restoration, with feature-owned loading/error state.
+- Standard Identity password policy; chosen eight-hour absolute, non-persistent session and cookie settings documented in [AUTHENTICATION.md](AUTHENTICATION.md).
+- Test-first request-pipeline and frontend behavior checks, PostgreSQL migration/concurrency checks, builds, and actual validation documentation.
+
+Excluded: logout, subscriptions, destinations, events, event types, history, administration/bootstrap, and the general idempotency mechanism. No commit before explicit approval.
+
+Acceptance: successful regular-only registration without automatic login; successful cookie login/restoration; safe duplicate-name/credential/validation outcomes; CSRF rejection; documented/tested session lifetime; working forms; existing health/error behavior preserved. Stop for review after reporting actual checks.
+
 ## Later milestones: proposed sequencing, not increment approval
 
 | Milestone | Deliverable and acceptance focus |
 | --- | --- |
-| Accounts and access | Registration/login, authorized role boundaries, safe bootstrap, and final-administrator protection. |
+| Remaining accounts and access | Elevated-role boundaries/management, safe bootstrap, and final-administrator protection. Registration/login are implemented in increment 3. |
 | Event types and subscriptions | Admin type management, user destinations/subscriptions, uniqueness, and deletion restrictions. |
 | Publication vertical slice | Immutable event publication, publication-time matching/snapshots, and recorded simulated deliveries. |
 | Delivery behavior | Deterministic failure simulation, transient-only retries, duplicate suppression, and publication-time destination behavior. |

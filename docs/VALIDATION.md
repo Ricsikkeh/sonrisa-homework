@@ -108,6 +108,116 @@ Authorization: user accepted the proposed foundation as a separate implementatio
 - No authentication behavior is implemented. Tests using empty 401/403 responses check formatting only, not login or authorization.
 - Implementation stopped for review without a commit. The user subsequently explicitly authorized staging, committing with a descriptive message, and pushing this increment.
 
+## Increment 3: Registration and login
+
+Authorization: registration/login, frontend forms, and minimal current-user restoration only; approved authentication/security recommendations, regular-only registration, no registration idempotency key, standard Identity password-policy defaults, and documented session settings. All other business features, bootstrap, logout, and general idempotency are excluded. No commit is authorized.
+
+### Test-first evidence
+
+- Backend: wrote request-pipeline authentication tests before endpoints/Identity implementation. `dotnet test WorldEventAlerts.slnx --verbosity minimal` produced **11 failed, 18 passed**. New cases failed on missing auth routes (404 rather than 200/201/400/401) and missing cookie configuration. After implementation, the initial **29 cases passed**. Added password-policy, expiry/security-stamp, and token-identity-transition coverage, plus PostgreSQL migration/concurrency coverage.
+- Frontend: inspected incomplete delegated facade work, replaced it with a compiling no-op stub, and added form/shell tests against an empty form component before implementing behavior. `npm test -- --watch=false` produced **9 failed, 31 passed**: no auth HTTP requests, missing form fields/content, absent restored shell state, and missing busy behavior. After implementation **40 passed**; supplemental restore-race/cancellation/shell-retry tests brought the final total to **43**.
+
+### Completed checks
+
+- `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`, without PostgreSQL opt-in: **36 passed, 1 skipped**. The explicitly skipped test requires `AUTH_TEST_CONNECTION`; the default suite remains Docker-independent.
+- The same command with `AUTH_TEST_CONNECTION` supplied privately from local configuration: **37 passed, 0 failed/skipped**. PostgreSQL test applied actual migrations to a separate temporary database and submitted eight concurrent mixed-case registrations: exactly one 201, seven safe 409 conflicts, one stored account, no elevated roles, and a verifiable Identity password hash. Temporary database was dropped afterward.
+- Auth request coverage includes registration without automatic login or privilege assignment, normalized username conflicts, default password requirements, safe validation/credentials/lockout outcomes, missing/invalid/cross-client CSRF rejection, fresh-token requirements after login, cookie flags, no-cache current-user responses, and eight-hour absolute expiry without security-stamp renewal extending the session. Tested default captured logs/current-user responses contain no submitted plaintext password. Existing health/error tests remain green.
+- `dotnet build WorldEventAlerts.slnx --configuration Release --no-restore`: passed, **0 warnings/errors**.
+- `dotnet format WorldEventAlerts.slnx --no-restore`, then `--verify-no-changes --no-restore`: passed.
+- `dotnet list WorldEventAlerts.slnx package --vulnerable --include-transitive`: no known vulnerable packages reported. The initially resolved SQLite native dependency produced a high-severity advisory; added an explicit test-only `SQLitePCLRaw.bundle_e_sqlite3` 2.1.14 reference to resolve it, then reran the scan successfully.
+- Installed pinned local `dotnet-ef` 10.0.4 in `dotnet-tools.json`. `dotnet ef migrations has-pending-model-changes --project backend/WorldEventAlerts.Api`: no pending model changes.
+- `dotnet ef database update --project backend/WorldEventAlerts.Api -- --environment Development`: applied `AddIdentityAccounts` to the local development database. Initial absence of the migration-history table emitted an EF diagnostic, then the migration completed successfully. No accounts or privileged roles were seeded.
+- From `frontend/`: `npm test -- --watch=false`: **43 passed across 6 files**; `npm run build`: passed within bundle budgets; `npm audit --audit-level=high`: **0 vulnerabilities**; Prettier write/check on all changed/new frontend files: passed.
+- A temporary Node HTTP harness started the real Release API and Angular development server against another migrated temporary PostgreSQL database. Through the actual `/api` proxy it verified registration/login page shells, anonymous current-user 401/no-store, missing-CSRF rejection, regular-only registration without automatic sign-in, normalized duplicate conflict, invalid login, HttpOnly session-cookie login, and authenticated current-user restoration. The submitted plaintext password was absent from captured API logs. Host processes stopped and the smoke database was dropped.
+- PostgreSQL cleanup check found no remaining `wea_auth_*` test/smoke databases; the ordinary development database contained **zero accounts**.
+- Focused independent read-only review of account endpoints, cookie setup, auth facade, and form orchestration found no concrete in-scope defects. Coordinator inspected source/diffs and retained final integration ownership.
+- All **28 relative documentation links** resolved; a whitespace/local-secret scan across all **27 changed/new files** passed. Final `git diff --check` passed using repository line-ending settings. An initial check with `core.autocrlf=false` treated existing CRLF project-file line endings as whitespace; this was a checking-configuration artifact, not an application failure.
+
+### Limitations and review status
+
+- No browser-driven end-to-end or visual inspection was run. Angular DOM tests cover form behavior; live HTTP checks cover hosting/proxy/cookies, not a browser's full cookie enforcement.
+- Cookie expiry is exercised with a controlled clock in the in-process test host. Production cookie flags are tested, but no real HTTPS/reverse-proxy deployment was validated.
+- PostgreSQL integration requires a development account with `CREATEDB`; default tests use SQLite and do not replace provider-specific validation.
+- No logout, admin/bootstrap flow, roles-management UI, recovery, production key provisioning, broader abuse/rate-limiting, or other excluded features were implemented. [Authentication settings](AUTHENTICATION.md) and [production gaps](PRODUCTION-GAPS.md) document these boundaries.
+- Stopped for user review; no staging, commit, or push.
+
+## Increment 3 follow-up: account controllers and responsibility boundaries
+
+Authorization: refactor accounts into thin ASP.NET Core controllers, application-service coordination, Infrastructure-owned Identity implementation, separate HTTP DTOs, and a validated record value object. Preserve the existing contract/security and stop for review without committing. No new business features, packages, or schema changes.
+
+### Test-first and regression evidence
+
+- Added eight HTTP characterization cases before replacing the endpoint class. `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`: **44 passed, 1 PostgreSQL test skipped**. These pinned malformed/null JSON, missing/blank/oversized fields, maximum accepted lengths, registration-only Identity character policy, and no session on failed login.
+- Added value-object/application-coordination tests against compiling stubs. `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal --filter 'FullyQualifiedName~UserNameTests|FullyQualifiedName~AccountServiceTests'`: **11 failed, 4 passed**, for missing validated construction, registration delegation, validation errors, and check-before-sign-in coordination. After implementation all 15 passed.
+- Supplemental binding-order checks initially produced **4 failed, 4 passed** using `--filter 'FullyQualifiedName~Malformed_or_null|FullyQualifiedName~Unsupported_media'`. An authorization-stage antiforgery filter changed the old malformed-body/unsupported-media precedence. Replaced it with an action filter after MVC binding rejection; malformed requests again return safe `invalid_request`, unsupported media returns safe 415, and validly bound credential mutations still require antiforgery before application execution.
+- Added a configurable Identity character-policy regression proving neither the value object nor application duplicates/overrides Identity's character allowlist. Existing session/lockout/CSRF/regular-only/uniqueness and health/error tests remain green.
+
+### Completed checks
+
+- Final default `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`: **64 passed, 1 explicitly skipped PostgreSQL test**.
+- Same command with `AUTH_TEST_CONNECTION` supplied privately: **65 passed, 0 failed/skipped**. Actual PostgreSQL migrations and eight concurrent mixed-case registrations still produce exactly one account and seven safe conflicts. Temporary databases were cleaned up; development database remains at zero accounts.
+- `dotnet build WorldEventAlerts.slnx --configuration Release --no-restore`: passed, **0 warnings/errors**.
+- `dotnet format WorldEventAlerts.slnx --no-restore`, then `--verify-no-changes --no-restore`: passed.
+- `dotnet ef migrations has-pending-model-changes --project backend/WorldEventAlerts.Api`: no pending model changes. No migration was added or altered for this refactor.
+- From `frontend/`, `npm test -- --watch=false`: **43 passed**. Frontend source/contract did not change in this follow-up.
+- Independent five-file review found no concrete in-scope separation/invariant defects. Coordinator reviewed integration, binding-error behavior, and dependency direction: HTTP concerns stay in controllers/filter, application uses typed outcomes and one provider boundary, and UserManager/SignInManager/database-specific handling live in Infrastructure.
+- After adding a malformed-body log-privacy assertion, the targeted six malformed/null-body cases passed again. Final .NET formatting verification passed.
+- `git diff --check` passed; all **29 documentation links** resolved; whitespace/local-secret scan across all **37 changed/new files** passed. No files are staged.
+
+### Limitations and review status
+
+- The same deployment/browser limitations as increment 3 apply. No new live proxy/HTTPS/browser-driven smoke checks were run for this backend-only refactor; actual request-pipeline and PostgreSQL tests were run.
+- No packages changed; vulnerability scans were not repeated. Existing authenticated routes, DTO JSON, status/error codes, cookie lifetime, security-stamp behavior, and CSRF policy remain unchanged.
+- The `UserName` record enforces shared structural validity only, preserving login behavior; Identity still owns configurable registration character policy, normalization, and uniqueness. It has no public constructor or mutable/init value, and is distinct from HTTP DTOs.
+- Stopped for review with no staging, commit, or push.
+
+## Account DI follow-up
+
+- Added `IAccountService`, scoped interface-to-implementation registration, and constructor injection of the interface into `AccountsController`. Existing `IAccountIdentity` injection remains unchanged.
+- Added two DI tests first: interface/scoped resolution and HTTP controller behavior with a substituted application service. Both failed before wiring the interface and passed afterward.
+- `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`: **66 passed, 1 explicitly skipped PostgreSQL test**. The PostgreSQL opt-in and unchanged frontend tests were not repeated for this small DI-only change.
+- `dotnet build WorldEventAlerts.slnx --configuration Release --no-restore`: passed, **0 warnings/errors**. .NET formatting and `git diff --check` passed.
+- An initial red-path test picked up development configuration and created one test account. Removed that exact test-created row and verified zero accounts remained. The substitution test now explicitly clears the connection string, preventing access to development storage.
+- No API/security behavior changes, staging, or commit. Stopped for review.
+
+## Grouped DI registration follow-up
+
+- Kept `Program.cs` as the explicit composition root. Moved application, account presentation, error-handling, and persistence registrations into module/layer-specific `IServiceCollection` extensions alongside the existing account Infrastructure extension. Lifetimes, options, middleware ordering, and endpoint mapping are unchanged.
+- Regression check: `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`: **66 passed, 1 explicitly skipped PostgreSQL opt-in test**, including scoped DI resolution and replacement-service HTTP coverage.
+- `dotnet build WorldEventAlerts.slnx --configuration Release --no-restore`: passed, **0 warnings/errors**. .NET formatting verification and `git diff --check` passed.
+- No behavior, schema, dependency, or frontend changes; PostgreSQL opt-in/frontend checks were not repeated for registration regrouping. No staging or commit; stopped for review.
+
+## Credential-validation and request-cancellation follow-up
+
+Scope: separate request validation, username invariants, Identity policy/business constraints, authentication, and authorization; remove repeated service validation; propagate request cancellation honestly. No API payload/status/security-policy changes or additional business features.
+
+### Test-first evidence
+
+- Moved transport-bound tests to a dedicated shared-request-validator suite and changed application tests to typed-input orchestration/token propagation. Added explicit authorization metadata, validation-before-service, cancelled-service-stage, and cancelled-gateway-entry cases.
+- Against a compiling validator stub and token-shaped methods without cancellation guards, the targeted service/validator/boundary/DI command produced **23 failed, 8 passed** across 31 cases. Failures showed missing field validation, anonymous-access metadata, cancellation guards, and protected sign-in stage boundaries.
+- After implementation, the same cases passed as part of the full suite. Existing HTTP tests still cover missing/malformed/oversized bodies, safe Problem Details, Identity character/password policy, lockout, public regular-only registration, CSRF rejection, and fixed session lifetime.
+
+### Completed checks
+
+- `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`: **86 passed, 1 explicitly skipped PostgreSQL opt-in case**.
+- Same command with `AUTH_TEST_CONNECTION` supplied privately: **87 passed, 0 failed/skipped**, including migrations and eight concurrent mixed-case registrations in an isolated PostgreSQL database.
+- Tests verify that MVC forwards the actual request-aborted token to the injected application service, application stages pass that same token to the provider, already-cancelled requests do not start provider/Identity work, and cancellation after credential verification prevents sign-in. A completed creation outcome is not rewritten as cancellation/rollback after the provider finishes.
+- `dotnet build WorldEventAlerts.slnx --configuration Release --no-restore`: passed, **0 warnings/errors**. .NET formatting applied and verified successfully.
+- From `frontend/`, `npm test -- --watch=false`: **43 passed**. No frontend source changes.
+- Inspected the .NET 10 reference XML signatures for every UserManager/SignInManager method used and `IAntiforgery.ValidateRequestAsync`: these APIs expose no cancellation-token overload. The limitation, cooperative stage boundaries, supported MVC/direct-EF paths, and possible committed effects after request abort are documented in [AUTHENTICATION.md](AUTHENTICATION.md).
+- Focused independent four-file review found no concrete defects; coordinator reviewed the complete changed path and regression results.
+- Final `git diff --check` passed; all **31 documentation links** resolved; whitespace/local-secret scanning passed across all **47 changed/new files**. PostgreSQL cleanup confirmed no leftover test databases and zero development accounts.
+
+### Limitations and review status
+
+- Cancellation tests verify request-token forwarding and stage boundaries, not interruption of unsupported Identity I/O or password hashing, nor real browser/socket disconnect timing. Cancellation cannot imply rollback of an already-created account, lockout updates, or an already-started sign-in.
+- No live proxy/browser/HTTPS smoke run, dependency audit, or frontend production build was repeated. No dependencies, migrations, frontend source, session policy, or externally visible request/response contracts changed.
+- Stopped for review; no staging, commit, or push.
+
+## Increment 3 commit authorization
+
+After review of registration/login and the controller/layering, DI, validation, authorization, and cancellation follow-ups, the user explicitly authorized a descriptive commit and push. The checks above are the implementation evidence; no source behavior changed during commit preparation. Current planning/authentication status is updated to reflect this approval. Earlier review-stop notes remain historical records.
+
 ## Future increment records
 
 Record each increment's scope, test-first failure and expected reason, passing checks, commands actually run, limitations, and review status. Do not record planned checks as completed.

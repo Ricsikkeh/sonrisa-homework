@@ -42,7 +42,7 @@ Example unexpected failure:
 
 Feature-specific errors may have more precise stable codes and safe details. Validation responses will add field-level `errors` when forms and validation rules arrive. Expected business outcomes should be explicit application results, mapped at the API boundary, rather than thrown as unexpected exceptions. No generic result framework is introduced yet.
 
-These conventions do not implement authentication, ownership checks, database-error classification, or business constraints. Accounts must return JSON 401/403 rather than login-page redirects; ownership-sensitive 404 behavior must be tested with those features. Do not map every database exception to 503.
+The foundation alone does not implement authentication, ownership checks, database-error classification, or business constraints. Increment 3 implements API-safe cookie 401/403 behavior and the narrowly scoped registration/login error contract in [AUTHENTICATION.md](AUTHENTICATION.md). Ownership-sensitive 404 behavior must be tested with future features. Do not map every database exception to 503.
 
 ## Application logging policy
 
@@ -71,7 +71,7 @@ Never log passwords, connection strings, cookies, authorization headers, antifor
 - Accepts optional `code` and `traceId` only from a structurally valid Problem Details object whose status matches the HTTP status. Identifier characters and lengths are restricted.
 - Does not display arbitrary server `title`, `detail`, field-error text, HTML, or other response content.
 
-It is a utility for future feature facades, not a new global interceptor or UI layer. The existing health facade intentionally keeps its simple unavailable state. Future facades own inline validation, conflicts, safe messages, and retry actions. Any field-error mapping must use a reviewed safe contract.
+It is a utility used by the authentication facade and available to future feature facades, not a global interceptor or UI layer. The existing health facade intentionally keeps its simple unavailable state. Future facades own inline validation, conflicts, safe messages, and retry actions. Any field-error mapping must use a reviewed safe contract.
 
 No universal error snackbar, automatic mutation retry, global login navigation, or remote browser-error collector is introduced. Angular's existing global error listeners remain the last resort for unexpected client failures, not normal API errors. Publication must not be retried automatically without an idempotency design.
 

@@ -1,4 +1,24 @@
 <mat-toolbar>World Event Alerts · POC</mat-toolbar>
+<nav aria-label="Main navigation">
+  <a mat-button routerLink="/">Home</a>
+  @switch (auth.status()) {
+    @case ('loading') {
+      <span role="status">Checking session…</span>
+    }
+    @case ('authenticated') {
+      <span role="status">Signed in as {{ auth.user()?.userName }}</span>
+    }
+    @case ('anonymous') {
+      <a mat-button routerLink="/login">Sign in</a>
+      <a mat-button routerLink="/register">Register</a>
+    }
+    @case ('unavailable') {
+      <span role="status">Unable to check your session.</span>
+      <button mat-button type="button" (click)="auth.restore()">Retry session check</button>
+      <a mat-button routerLink="/login">Sign in</a>
+    }
+  }
+</nav>
 <main>
   <router-outlet />
 </main>

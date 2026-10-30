@@ -60,11 +60,33 @@ The user accepted the error-handling/logging foundation as a separate increment.
 - Authentication behavior, business-rule mappings, field validation, and delivery processing remain unimplemented and require their own increments.
 - This implementation approval does not authorize a commit.
 
+## Approved technical choices for increment 3
+
+- Scope is registration/login, frontend forms, and the minimal current-user endpoint only. No logout, bootstrap, other business features, or general idempotency mechanism.
+- Public registration creates only base regular accounts, does not sign in automatically, and accepts no privilege assignment. It needs no idempotency key; Identity normalization plus the database unique username index prevent duplicates, with safe conflict handling for PostgreSQL races.
+- Preserve standard Identity password-policy defaults and default five-attempt/five-minute lockout. Application input limits are username 256/password 128 characters.
+- Use same-origin Identity cookies and antiforgery tokens on both credential POSTs. Return API 401/403 rather than HTML redirects; auth responses are not cacheable.
+- Use an eight-hour absolute, non-persistent session with no sliding renewal, `HttpOnly`/`SameSite=Lax` authentication cookie, and `Secure=Always` outside Development. Identity security-stamp validation cannot extend ticket lifetime. Antiforgery cookie is `HttpOnly`/`SameSite=Strict`. Full contract: [AUTHENTICATION.md](AUTHENTICATION.md).
+- Explicit checked-in EF migration, no auto-migration or seeding at startup. Use SQLite for default relational request tests and an opt-in temporary PostgreSQL database for provider-specific migration/concurrency coverage.
+- Registration/login forms use a shared root auth facade; restore through `/auth/me`, retrieve fresh antiforgery tokens per submission, and do not persist credentials or automatically retry mutations.
+- Implemented and pending review. No commit is authorized.
+
+### Increment 3 follow-up: account layering refactor
+
+The user requested thin ASP.NET Core controllers instead of the endpoint class, application-service coordination, Identity implementation in Infrastructure, separate HTTP DTOs, and a validated record value object without duplicated Identity rules. Implemented with one account-provider boundary, a small application service and typed outcomes, an Identity gateway, and an immutable `UserName` record. The value object enforces shared structural bounds; Identity remains responsible for configurable character policy, normalization, and uniqueness. Routes, payloads, statuses, password/session policy, and security protections remain unchanged. Details: [AUTHENTICATION.md](AUTHENTICATION.md). No commit is authorized.
+
+### Account validation, authorization, and cancellation follow-up
+
+- Bind HTTP DTOs and validate transport input once through a shared request-validation path. It constructs `UserName` through its invariant-enforcing factory and creates typed `AccountCredentials`; application methods no longer repeat raw credential validation.
+- Keep Identity/database policy and business constraints separate from transport checks and value-object invariants. Credential verification/lockout and session issuance remain authentication operations. `[Authorize]` protects the account controller by default; `[AllowAnonymous]` explicitly covers registration/login/token issuance without bypassing input validation or antiforgery.
+- Forward request cancellation through controller, service, and provider contracts. Check before/between unsupported Identity stages, but do not claim to cancel in-flight manager calls or undo committed effects. Do not use detached tasks or `WaitAsync` as fake I/O cancellation. The precise framework limitations and registration-after-abort semantics are documented in [AUTHENTICATION.md](AUTHENTICATION.md).
+- No new business features, dependency changes, schema changes, or commit authorization.
+
 ## Deferred implementation details
 
 No unresolved product question blocked increment 1. Before later increments, agree on any material behavior/security choices, including:
 
-- Cookie/session configuration and request-forgery protection.
+- Deployment-specific HTTPS/proxy trust, persistent/shared data-protection keys, and account-abuse controls beyond default lockout. POC cookie/session/antiforgery choices are implemented in increment 3.
 - Bootstrap handling/reporting when the configured username already exists, preserving D06.
 - Concrete publication transaction, concurrency, and pending-delivery processing strategy.
 - Exact retry delay, simulation controls, and safe status/error vocabulary.

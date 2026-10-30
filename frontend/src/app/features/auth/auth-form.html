@@ -1,0 +1,58 @@
+<h1>{{ registering ? 'Register' : 'Sign in' }}</h1>
+@if (registered) {
+  <p role="status">Account created. Sign in with your new username and password.</p>
+}
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <mat-form-field>
+    <mat-label>Username</mat-label>
+    <input
+      matInput
+      name="userName"
+      formControlName="userName"
+      autocomplete="username"
+      maxlength="256"
+      required
+    />
+    @if (form.controls.userName.invalid) {
+      <mat-error>Use 1–256 letters, numbers, or these characters: @ . _ + -</mat-error>
+    }
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Password</mat-label>
+    <input
+      matInput
+      type="password"
+      name="password"
+      formControlName="password"
+      [autocomplete]="registering ? 'new-password' : 'current-password'"
+      maxlength="128"
+      required
+    />
+    @if (form.controls.password.invalid) {
+      <mat-error>{{
+        registering
+          ? 'Use a password of 6–128 characters.'
+          : 'Enter your password (up to 128 characters).'
+      }}</mat-error>
+    }
+  </mat-form-field>
+  @if (registering) {
+    <p>
+      Use at least 6 characters, including uppercase and lowercase letters, a number, and a
+      non-alphanumeric character. Maximum 128 characters.
+    </p>
+  }
+  @if (auth.error(); as error) {
+    <p role="alert" class="error">{{ error }}</p>
+  }
+  <button mat-flat-button type="submit" [disabled]="auth.busy()">
+    {{ auth.busy() ? 'Submitting…' : registering ? 'Create account' : 'Sign in' }}
+  </button>
+</form>
+<p>
+  @if (registering) {
+    Already have an account? <a routerLink="/login">Sign in</a>
+  } @else {
+    Need an account? <a routerLink="/register">Register</a>
+  }
+</p>
