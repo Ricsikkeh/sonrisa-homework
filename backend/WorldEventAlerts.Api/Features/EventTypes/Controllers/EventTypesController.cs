@@ -48,6 +48,8 @@ public sealed class EventTypesController(IEventTypeService eventTypes) : Control
         EventTypeResult.Deleted => NoContent(),
         EventTypeResult.NotFound => Failure(404, "event_type_not_found"),
         EventTypeResult.NameConflict => Failure(409, "event_type_name_conflict"),
+        EventTypeResult.InUse => Failure(409, "event_type_in_use"),
+        EventTypeResult.InProgress => Failure(409, "event_type_change_in_progress"),
         _ => throw new InvalidOperationException("Unknown event-type outcome.")
     };
 

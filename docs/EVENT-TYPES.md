@@ -59,15 +59,15 @@ The database constraint, not only a pre-check, must handle simultaneous create/r
 
 ### Subscription and history integration boundary
 
-The agreed rule is that **any subscription referencing a type prevents deletion**. Subscription persistence does not exist yet, so this increment cannot demonstrate that rule against real subscriptions. With no subscriptions present, every active type is eligible for deletion.
+The agreed rule is that **any subscription referencing a type prevents deletion**. The original event-type increment had no subscriptions and deferred this integration. The subsequent [subscription-creation slice](SUBSCRIPTIONS.md) now implements real references and returns `409 event_type_in_use` when deletion is blocked.
 
-Do not add a fake subscription store, an always-false dependency, or claim the restriction is complete. Before subscriptions are enabled, their increment must add the real reference check and a concurrency-safe transaction/locking protocol shared by subscription creation and type deletion. A foreign key alone cannot prevent a subscription referencing a soft-deleted row. Prove the subscribe/delete race against PostgreSQL and return `409 event_type_in_use` when deletion is blocked.
+Deletion now starts a transaction, locks the active type row on PostgreSQL, then checks committed subscriptions in a fresh query before its conditional soft-delete UPDATE. Creation locks that same type before persisting, so either creation wins and deletion is blocked, or deletion wins and creation rejects the unavailable type. Both orders are verified against PostgreSQL; a foreign key alone would not protect a soft-deleted row.
 
 The subsequent [event-create slice](EVENTS.md) now rejects deleted types and snapshots the current type name in its creation transaction, with a PostgreSQL row-lock protocol that serializes against the existing rename/delete UPDATE statements. Renaming or soft-deleting a type never rewrites the stored event snapshot, and completed idempotent replays still return it. The user explicitly retained type soft deletion while prohibiting event deletion. Publication-time subscription/destination matching and delivery-history presentation remain unimplemented obligations; the create-only slice generates no alerts.
 
 ## Implemented API
 
-Backend routes below omit Angular's `/api` proxy prefix. All endpoints require an authenticated `Administrator`; anonymous requests return 401, regular users/editors return 403. This management list is not the future subscriber/editor selector endpoint.
+Backend routes below omit Angular's `/api` proxy prefix. All endpoints require an authenticated `Administrator`; anonymous requests return 401, regular users/editors return 403. This management list remains administrator-only; separate `/events/event-types` and `/subscriptions/event-types` selectors serve authorized creators and authenticated subscribers.
 
 | Method and route | Input | Success |
 | --- | --- | --- |
@@ -80,6 +80,7 @@ Backend routes below omit Angular's `/api` proxy prefix. All endpoints require a
 - Invalid input: 400 with stable `event_type_name_invalid` and safe field validation. Malformed requests retain the existing safe transport-error contract.
 - Active-name collision: 409 with `event_type_name_conflict`.
 - Missing/deleted ID: 404 with `event_type_not_found`.
+- Deletion blocked by any subscription: 409 with `event_type_in_use`; nothing is deleted. Bounded PostgreSQL deletion lock contention returns 409 with `event_type_change_in_progress`. The frontend uses fixed safe messages and never automatically retries.
 - All mutations require a fresh antiforgery token through the existing `/auth/csrf` and `X-XSRF-TOKEN` contract; invalid tokens retain `antiforgery_failed`.
 - Follow existing safe logging/Problem Details policy. Never log submitted names or raw database exceptions. Disable caching for authenticated management responses.
 - Forward cancellation to application/persistence operations; do not report a disconnected request as an unexpected failure or imply committed writes were undone.
@@ -109,7 +110,7 @@ The user approved this plan and subsequently requested the event-type backend/ad
 ## Implementation and validation notes
 
 - HTTP validation constructs `EventTypeName` once; the application service accepts validated names and forwards the original cancellation token through its scoped `IEventTypeStore` boundary. Persistence uses direct cancellable EF APIs.
-- Create uses an early conflict check and the partial unique index closes concurrent races. Rename uses an early active/conflict check followed by one conditional SQL UPDATE; the final statement also requires an active row. Delete similarly uses one conditional UPDATE. A successful mutation response represents that write, not a guarantee no subsequent administrator has changed the row.
+- Create uses an early conflict check and the partial unique index closes concurrent races. Rename uses an early active/conflict check followed by one conditional SQL UPDATE; the final statement also requires an active row. Delete now uses a type-row-lock transaction and real subscription-reference check before its conditional UPDATE, added by the subscription increment. A successful mutation response represents that write, not a guarantee no subsequent administrator has changed the row.
 - Only the known PostgreSQL active-name index violation maps to the name-conflict outcome; unrelated database failures are not mislabeled. SQLite covers ordinary request behavior, while real PostgreSQL tests force create/rename pre-check races using barriers and prove the database constraint path.
 - EF emits raw exceptions before application conflict translation. Persistence configuration suppresses the known command/connection/transaction/query/save failure diagnostic events; the existing request handler still owns safe unexpected-error logging. Tested default concurrency logs contain neither raw uniqueness diagnostics nor submitted names/passwords. This is not a global sanitizer or an administrative audit trail.
 - The frontend validates names with the same UTF-16/control/whitespace policy, uses fresh CSRF tokens, blocks simultaneous submissions and writes during list loading, refreshes after success, retains failed form input, and displays fixed local messages. Expired/forbidden responses clear the list and disable mutations until an explicit successful reload. Malformed successful list responses stay out of presentation.

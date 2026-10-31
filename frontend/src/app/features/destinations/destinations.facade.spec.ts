@@ -124,6 +124,7 @@ describe('DestinationsFacade critical behavior', () => {
   it('maps expected errors safely and keeps failed input; malformed success is not confirmed', () => {
     load();
     for (const code of [
+      'destination_in_use',
       'destination_validation_failed',
       'destination_save_in_progress',
       'antiforgery_failed',
@@ -137,6 +138,7 @@ describe('DestinationsFacade critical behavior', () => {
           { status: 400, statusText: 'Failure' },
         );
       expect(facade.error()).not.toContain('SECRET');
+      if (code === 'destination_in_use') expect(facade.error()).toContain('subscription uses');
       expect(facade.draft()).toEqual(settings);
       expect(facade.saved()).toBe(false);
       http.expectNone('/api/auth/csrf');

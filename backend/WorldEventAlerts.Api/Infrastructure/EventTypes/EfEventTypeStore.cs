@@ -51,11 +51,29 @@ internal sealed class EfEventTypeStore(AlertsDbContext database) : IEventTypeSto
 
     public async Task<EventTypeResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        // No subscriptions exist yet. Their increment must add a shared subscribe/delete
-        // transaction protocol before enabling subscriptions; a soft-delete FK is insufficient.
-        var affected = await database.EventTypes.Where(type => type.Id == id && type.DeletedAt == null)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(type => type.DeletedAt, (DateTimeOffset?)DateTimeOffset.UtcNow), cancellationToken);
-        return affected == 0 ? new EventTypeResult.NotFound() : new EventTypeResult.Deleted();
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            if (database.Database.IsNpgsql())
+                await database.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '5s'", cancellationToken);
+            // Shared with subscription/event creation. The reference query must run after
+            // acquiring the lock so it observes a previous creator's committed subscription.
+            var type = database.Database.IsNpgsql()
+                ? await database.EventTypes.FromSqlInterpolated($"SELECT * FROM \"EventTypes\" WHERE \"Id\" = {id} FOR UPDATE")
+                    .IgnoreQueryFilters().AsNoTracking().SingleOrDefaultAsync(cancellationToken)
+                : await database.EventTypes.IgnoreQueryFilters().AsNoTracking().SingleOrDefaultAsync(type => type.Id == id, cancellationToken);
+            if (type is null || type.DeletedAt is not null) return new EventTypeResult.NotFound();
+            if (await database.Subscriptions.AnyAsync(item => item.EventTypeId == id, cancellationToken)) return new EventTypeResult.InUse();
+            var affected = await database.EventTypes.Where(type => type.Id == id && type.DeletedAt == null)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(type => type.DeletedAt, (DateTimeOffset?)DateTimeOffset.UtcNow), cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return affected == 0 ? new EventTypeResult.NotFound() : new EventTypeResult.Deleted();
+        }
+        catch (Exception exception) when (exception.GetBaseException() is PostgresException { SqlState: PostgresErrorCodes.LockNotAvailable })
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return new EventTypeResult.InProgress();
+        }
     }
 
     private static bool IsNameConflict(Exception? exception) => exception is PostgresException

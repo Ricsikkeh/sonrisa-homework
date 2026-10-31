@@ -4,7 +4,10 @@
     Configure your own simulated email and Slack destinations. No messages are sent and no
     integration credentials are needed.
   </p>
-  <p>Leave either field empty to remove that destination. Saving replaces both settings.</p>
+  <p>
+    Leave an unused field empty to remove that destination. A destination used by a subscription
+    cannot be removed. Saving replaces both settings.
+  </p>
   @if (facade.loading()) {
     <p role="status">Loading your settings…</p>
   }

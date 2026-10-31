@@ -297,6 +297,41 @@ namespace WorldEventAlerts.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("Events", (string)null);
                 });
 
+            modelBuilder.Entity("WorldEventAlerts.Api.Features.Subscriptions.Domain.Subscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Email")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("EventTypeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Slack")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventTypeId");
+
+                    b.HasIndex("OwnerId", "EventTypeId")
+                        .IsUnique();
+
+                    b.ToTable("Subscriptions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Subscriptions_Channels", "\"Email\" OR \"Slack\"");
+                        });
+                });
+
             modelBuilder.Entity("WorldEventAlerts.Api.Infrastructure.Events.EventCreationRequest", b =>
                 {
                     b.Property<string>("OwnerId")
@@ -387,6 +422,21 @@ namespace WorldEventAlerts.Api.Infrastructure.Persistence.Migrations
                     b.HasOne("WorldEventAlerts.Api.Features.EventTypes.Domain.EventType", null)
                         .WithMany()
                         .HasForeignKey("EventTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WorldEventAlerts.Api.Features.Subscriptions.Domain.Subscription", b =>
+                {
+                    b.HasOne("WorldEventAlerts.Api.Features.EventTypes.Domain.EventType", null)
+                        .WithMany()
+                        .HasForeignKey("EventTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

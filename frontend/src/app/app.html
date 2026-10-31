@@ -8,6 +8,7 @@
     @case ('authenticated') {
       <span role="status">Signed in as {{ auth.user()?.userName }}</span>
       <a mat-button routerLink="/settings/destinations">Destinations</a>
+      <a mat-button routerLink="/subscriptions/create">Create subscription</a>
       @if (auth.user()?.roles?.includes('Administrator')) {
         <button
           mat-button

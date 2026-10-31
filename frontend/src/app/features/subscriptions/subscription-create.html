@@ -1,0 +1,77 @@
+<section>
+  <h1>Create subscription</h1>
+  <p>
+    Choose which event types and channels you want to subscribe to. This increment saves
+    subscriptions only: no alerts are sent, and historical events are not replayed.
+  </p>
+  <p>
+    This screen creates subscriptions only; editing, deleting, and listing are not available here.
+  </p>
+
+  @if (facade.loading()) {
+    <p role="status">Loading event types and destinations…</p>
+  }
+  @if (facade.error()) {
+    <p role="alert">{{ facade.error() }}</p>
+  }
+  <button
+    mat-button
+    type="button"
+    (click)="facade.reload()"
+    [disabled]="facade.loading() || facade.busy()"
+  >
+    Check session and reload
+  </button>
+  <p><a routerLink="/settings/destinations">Configure notification destinations</a></p>
+
+  @if (facade.loaded() && !facade.denied()) {
+    <p>
+      Email destination: {{ facade.hasEmail() ? 'configured' : 'not configured' }}. Slack
+      destination: {{ facade.hasSlack() ? 'configured' : 'not configured' }}.
+      <a routerLink="/settings/destinations">Destination settings</a>
+    </p>
+    @if (facade.eventTypes().length === 0) {
+      <p role="status">
+        No active event types are available. Reload after an administrator creates one.
+      </p>
+    }
+    <p>
+      Select at least one configured channel. Missing destinations must be configured before
+      selecting their channels.
+    </p>
+    <mat-form-field>
+      <mat-label>Event type</mat-label>
+      <mat-select
+        [ngModel]="facade.selectedType()"
+        (ngModelChange)="facade.setType($event)"
+        [disabled]="facade.busy()"
+      >
+        @for (eventType of facade.eventTypes(); track eventType.id) {
+          <mat-option [value]="eventType.id">{{ eventType.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <div>
+      <mat-checkbox
+        [ngModel]="facade.emailSelected()"
+        (ngModelChange)="facade.setEmail($event)"
+        [disabled]="facade.busy() || !facade.hasEmail()"
+        >Email</mat-checkbox
+      >
+      <mat-checkbox
+        [ngModel]="facade.slackSelected()"
+        (ngModelChange)="facade.setSlack($event)"
+        [disabled]="facade.busy() || !facade.hasSlack()"
+        >Slack</mat-checkbox
+      >
+    </div>
+    <button mat-flat-button type="button" (click)="create()" [disabled]="!facade.canCreate()">
+      {{ facade.busy() ? 'Creating…' : 'Create subscription' }}
+    </button>
+  }
+  @if (facade.result(); as result) {
+    <p role="status">
+      Subscription created for {{ result.eventTypeName }} ({{ result.channels.join(', ') }}).
+    </p>
+  }
+</section>

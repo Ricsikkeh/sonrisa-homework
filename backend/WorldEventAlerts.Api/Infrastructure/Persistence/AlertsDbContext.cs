@@ -5,6 +5,8 @@ using WorldEventAlerts.Api.Features.EventTypes.Domain;
 using WorldEventAlerts.Api.Features.Events.Domain;
 using WorldEventAlerts.Api.Features.Destinations.Domain;
 using WorldEventAlerts.Api.Infrastructure.Destinations;
+using WorldEventAlerts.Api.Features.Subscriptions.Domain;
+using WorldEventAlerts.Api.Infrastructure.Subscriptions;
 using WorldEventAlerts.Api.Infrastructure.Events;
 using WorldEventAlerts.Api.Infrastructure.EventTypes;
 
@@ -15,6 +17,7 @@ public sealed class AlertsDbContext(DbContextOptions<AlertsDbContext> options) :
     public DbSet<EventType> EventTypes => Set<EventType>();
     public DbSet<Event> Events => Set<Event>();
     public DbSet<UserDestinations> UserDestinations => Set<UserDestinations>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -23,5 +26,6 @@ public sealed class AlertsDbContext(DbContextOptions<AlertsDbContext> options) :
         builder.ApplyConfiguration(new EventConfiguration());
         builder.ApplyConfiguration(new EventCreationRequestConfiguration());
         builder.ApplyConfiguration(new DestinationConfiguration());
+        builder.ApplyConfiguration(new SubscriptionConfiguration());
     }
 }

@@ -47,6 +47,7 @@ public sealed class DestinationsController(IDestinationService destinations) : C
         DestinationResult.Success success => Ok(new DestinationsResponse(success.Item.Email, success.Item.SlackLabel)),
         DestinationResult.AccountUnavailable => Failure(401, "authentication_required"),
         DestinationResult.InProgress => Failure(409, "destination_save_in_progress"),
+        DestinationResult.InUse => Failure(409, "destination_in_use"),
         _ => throw new InvalidOperationException("Unknown destination outcome.")
     };
 

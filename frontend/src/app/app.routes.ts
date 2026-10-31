@@ -33,5 +33,13 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/destinations/destinations').then((module) => module.Destinations),
   },
+  {
+    path: 'subscriptions/create',
+    canActivate: [authenticatedGuard],
+    loadComponent: () =>
+      import('./features/subscriptions/subscription-create').then(
+        (module) => module.SubscriptionCreate,
+      ),
+  },
   { path: '**', redirectTo: '' },
 ];

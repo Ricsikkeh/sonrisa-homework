@@ -120,6 +120,9 @@ export class EventTypesFacade {
       const messages: Record<string, string> = {
         event_type_name_invalid: 'Enter a name of 1–100 characters without control characters.',
         event_type_name_conflict: 'An active event type with that name already exists.',
+        event_type_in_use: 'This event type has subscriptions and cannot be deleted.',
+        event_type_change_in_progress:
+          'This event type is being used by another request. Reload or explicitly try again.',
         event_type_not_found: 'This event type no longer exists. Reload the list.',
         antiforgery_failed: 'Your session changed. Please submit the form again.',
       };

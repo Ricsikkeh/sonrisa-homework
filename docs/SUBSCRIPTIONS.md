@@ -1,6 +1,6 @@
 # Own subscription creation — approved plan
 
-Status: **Plan approved; destination prerequisite reviewed with commit/push authorized; subscription creation authorized next.** The user accepted the proposed scope, including minimal user-level destination setup, replaced mandatory TDD with design-time critical-point testing, and then authorized development and the proposed expected-account safeguard. See [implemented destination behavior](DESTINATIONS.md) and [actual validation evidence](VALIDATION.md). Subscription creation and its reference/race integration have not started. The remaining sections describe the approved target slice, not a claim that all behavior is complete. Follow the current [development workflow](PLAN.md#development-workflow), [MVP](MVP.md), and [decisions](DECISIONS.md).
+Status: **Subscription creation implemented, validated, and reviewed; commit and push authorized.** The reviewed destination prerequisite was committed and pushed as `e2b7622`; the user requested proceeding with creation. The creation API/form, selected-channel destination checks, subscription-blocked type deletion, and concurrency-safe destination clearing restrictions are now implemented. Matching/delivery, subscription editing/deletion, history, and administrator inspection remain excluded. Testing follows design-time critical points, not mandatory TDD. See [destination behavior](DESTINATIONS.md) and [actual validation evidence](VALIDATION.md). Follow the current [development workflow](PLAN.md#development-workflow), [MVP](MVP.md), and [decisions](DECISIONS.md).
 
 ## Scope and boundaries
 
@@ -17,11 +17,11 @@ Excluded: subscription editing/deletion, matching/delivery, publication-time rec
 
 ## Destination prerequisite
 
-Destinations belong to the authenticated user and are configured separately from registration and subscription records. No real Slack credentials are needed. The implemented prerequisite trims fields and supports absent values, validates email syntax up to 254 UTF-16 units, and simulated Slack labels up to 100 without control characters; see the [exact policy](DESTINATIONS.md#field-policy). Before enabling subscriptions, add the rule that a destination cannot be cleared while an existing subscription requires that channel. That subscription-reference check is not part of the completed prerequisite because subscription persistence does not exist yet.
+Destinations belong to the authenticated user and are configured separately from registration and subscription records. No real Slack credentials are needed. The implemented prerequisite trims fields and supports absent values, validates email syntax up to 254 UTF-16 units, and simulated Slack labels up to 100 without control characters; see the [exact policy](DESTINATIONS.md#field-policy). The creation slice adds a real reference check under the stable user lock: clearing a selected destination returns `409 destination_in_use`, preserving existing settings. Replacing a required destination with another valid value and clearing unused destinations remain allowed.
 
 Subscription creation checks selected destinations against current persisted settings. Destination saves that clear values and subscription creation must use a shared concurrency-safe protocol so a concurrent clear cannot leave a subscription without a required destination.
 
-## Proposed API contract
+## Implemented API contract
 
 Routes omit the Angular `/api` proxy prefix; all require authentication.
 
@@ -36,23 +36,30 @@ Routes omit the Angular `/api` proxy prefix; all require authentication.
 - Require at least one distinct supported channel (`email`, `slack`), an active event type, and configured destinations for selected channels.
 - Return 201 for creation. A database unique constraint on user/event type closes duplicate races; duplicate creation returns `409 subscription_already_exists` and never updates channels.
 - No new idempotency ledger: uniqueness prevents duplicate subscriptions, but a lost response cannot be replayed as the original success. The UI must explain ambiguity/duplicate outcomes without claiming the latest payload was saved.
-- Use stable safe validation/conflict codes and existing Problem Details, fresh antiforgery for mutations, and no automatic mutation retries.
+- Use existing safe Problem Details, fresh antiforgery for mutations, and no automatic mutation retries. Invalid type ID/empty, unknown, duplicate, or null channels return `400 subscription_validation_failed` with safe field codes. Missing/deleted types return `409 event_type_unavailable`; missing selected destinations return `409 destination_required`.
+- `POST /subscriptions` returns `{ id, eventTypeId, eventTypeName, channels, createdAt }`, with server UUID/UTC time, canonical email-then-Slack channel order, and the current type name at creation. The response name is not a delivery-history snapshot; destinations are not copied into subscriptions.
+- The first-party selector and POST send optional `X-Expected-User-Id`, checked against the principal before use. Mismatch/multiple values return `409 subscription_session_changed`. Header omission never changes ownership authority. Destination reads retain the equivalent safeguard.
+- PostgreSQL lock waits are bounded to five seconds. Contention returns `409 subscription_create_in_progress`, `409 destination_save_in_progress`, or `409 event_type_change_in_progress`, as appropriate. Missing persisted create owner returns 401. Personal/authentication responses are no-store.
 
 ## Persistence and event-type integration
 
 Follow existing feature boundaries: subscription domain/application service/store/DTOs/thin controller under `Features/Subscriptions`, EF implementation under `Infrastructure/Subscriptions`, and an explicit migration. Keep destination ownership in a small account-owned feature. Add a guarded lazy Angular subscription feature with a feature-owned facade and reuse current-user restoration.
 
-Before subscriptions become usable, replace the current event-type deletion placeholder with a real reference check. Any subscription blocks soft deletion with `409 event_type_in_use`. Subscription creation and deletion must share a transaction/row-lock protocol and recheck relevant state inside it. A foreign key alone cannot protect a soft-deleted type. Coordinate locking with existing event creation/type mutations and use a consistent lock order.
+The deletion placeholder is replaced with a real reference check. Any subscription blocks soft deletion with `409 event_type_in_use`. Creation locks the event-type row and then the stable Identity user row; deletion locks the type; settings save locks the user. Active state, current destinations, duplicates, and references are checked in fresh statements after lock acquisition under PostgreSQL Read Committed. A foreign key alone cannot protect a soft-deleted type. Existing event-create/type-mutation locking remains compatible.
+
+`Subscriptions` stores server ID, owner ID, event-type ID, email/Slack selections, and UTC creation time. A unique owner/type index, required owner/type foreign keys, and an at-least-one-channel check constraint enforce storage integrity. Apply `AddSubscriptions` explicitly; startup does not migrate automatically.
 
 Subscriptions select channels and refer to user-level destinations; they do not snapshot destinations at creation. Publication-time snapshots remain a future delivery concern.
 
 ## User experience
 
-Provide minimal destination setup and an authenticated Create subscription screen. Load active types and own destinations; explain unavailable channels and link to settings. Require a type and at least one usable channel. Show loading/empty/error/success states, preserve failed input, block overlapping submissions, handle expired sessions and stale types, and never retry mutations automatically.
+Every authenticated account has **Create subscription** at `/subscriptions/create`, using the existing authenticated-user guard. The feature facade loads active types and own destinations together, explains unavailable channels, links to settings, and requires a listed type plus at least one configured channel. There is no subscription list/details/edit/delete screen or API.
+
+The form blocks overlapping work, keeps ordinary failed selections, and validates success against the submitted type/channels before confirming/resetting selections. Stale type/destination failures disable creation until explicit reload. Account changes/mismatch/401/403 clear private state and require explicit session restore/reload. Uncertain responses never trigger automatic retries or false success; explicit retries may return already-exists without applying changed channels. Reload does not recover or inspect an existing subscription because no read/recovery endpoint is in scope.
 
 ## Critical test points
 
-Status: **Full-slice test plan; destination-related checks have run, subscription-specific checks have not.** The prerequisite covers destination ownership/CSRF/validation/account switching, settings first-save locking/cancellation/rollback, its schema upgrade, and frontend settings recovery. The validation record contains actual results. Subscription channel/reference constraints, duplicate creation, and subscribe-versus-delete/clear races remain planned. Tests may precede, accompany, or follow implementation. There is no mandatory failing-first sequence or coverage percentage target.
+Status: **Implemented critical-point coverage.** Focused API tests cover creation/ownership/CSRF/validation/references. Deterministic PostgreSQL tests cover duplicate creation, both subscribe-versus-delete orders, both subscribe-versus-clear orders per channel, migration/storage constraints, cancellation, rollback, and contention. Frontend tests cover guarded access, consequential submission/recovery, and reference-error presentation. See the validation record for exact commands/results and limitations; the scenarios below remain the design/checklist, not mandatory tests at every layer. Tests may precede, accompany, or follow implementation. There is no mandatory failing-first sequence or coverage percentage target.
 
 Use API/relational tests for observable contracts, real PostgreSQL for constraint/locking behavior, and frontend facade/guard tests for consequential client behavior. Do not repeat the same rule in domain, service, controller, and UI tests unless those layers protect different risks. Parameterized cases may share a test; the list below defines outcomes, not a required test count.
 
@@ -66,7 +73,7 @@ Focused checks:
 - With accounts A and B, saving A's destinations cannot read/change B's settings. Subscription ownership always comes from the request principal; an attempted client owner override is rejected or ignored and never writes for B.
 - Both mutation endpoints reject missing/invalid antiforgery and make no changes. Valid protected requests succeed. Check personal responses are no-store in these API tests.
 
-**Approved safeguard:** reuse the event form's expected-account precondition for destination save and subscription creation. If a form loaded for A but another tab changes the cookie to B, reject the stale form before writing, rather than silently applying it to B. The client expectation is never ownership authority; the authenticated principal remains authoritative. The destination prerequisite implements this on GET/PUT with API mismatch/no-write checks and frontend account-change checks; apply it to subscription creation when implemented. Without this choice, server ownership isolation alone does not prevent a stale form from modifying the newly signed-in account.
+**Approved safeguard:** reuse the event form's expected-account precondition for destination save and subscription creation. If a form loaded for A but another tab changes the cookie to B, reject the stale form before writing, rather than silently applying it to B. The client expectation is never ownership authority; the authenticated principal remains authoritative. The destination prerequisite implements this on GET/PUT with API mismatch/no-write checks and frontend account-change checks; the subscription selector and creation now implement the same protection. Without this choice, server ownership isolation alone does not prevent a stale form from modifying the newly signed-in account.
 
 ### CP2 — Selected channels require valid, current destinations
 
@@ -110,7 +117,7 @@ Run deterministic PostgreSQL races in both orders, parameterized for email and S
 - Creation wins: subscription commits; clearing the required destination is rejected; destination remains configured.
 - Clearing wins: clear commits; creation is rejected for a missing destination; no subscription remains.
 
-**Locking design to use for CP4/CP5:** serialize type deletion and subscription creation on the same event-type row. Serialize own destination writes and subscription creation on a stable per-user row, including first-time settings saves where no destination row exists yet. A concrete implementation can lock the existing Identity user row rather than relying on a possibly absent destination row. Creation acquires the type lock before the user lock; deletion takes the type lock; destination saves take the user lock. Recheck active type, current destinations, and relevant subscriptions after acquiring the locks, in the same transaction. Use reads that observe the prior lock holder's committed writes (for example, fresh statements under PostgreSQL Read Committed), not an earlier snapshot/pre-check. Enforce uniqueness with the database constraint independently of these locks. Keep lock ordering consistent with existing event operations and verify cancellation rolls back uncommitted work.
+**Implemented locking design for CP4/CP5:** serialize type deletion and subscription creation on the same event-type row. Serialize own destination writes and subscription creation on a stable per-user row, including first-time settings saves where no destination row exists yet. A concrete implementation can lock the existing Identity user row rather than relying on a possibly absent destination row. Creation acquires the type lock before the user lock; deletion takes the type lock; destination saves take the user lock. Recheck active type, current destinations, and relevant subscriptions after acquiring the locks, in the same transaction. Use reads that observe the prior lock holder's committed writes (for example, fresh statements under PostgreSQL Read Committed), not an earlier snapshot/pre-check. Enforce uniqueness with the database constraint independently of these locks. Keep lock ordering consistent with existing event operations and verify cancellation rolls back uncommitted work.
 
 ### CP6 — Client behavior must not create unintended writes or false success
 
@@ -142,7 +149,7 @@ Do not add tests solely for thin DTO/controller/service plumbing, generic getter
 ## Delivery and review
 
 1. Destination prerequisite implemented, verified, and reviewed; the user authorized its commit/push and requested proceeding with creation. See [destination details](DESTINATIONS.md) and actual validation evidence.
-2. Implement subscription creation together with deletion protection and focused tests.
-3. Run relevant existing backend/frontend regressions and builds, migration checks, and an agreed local API/proxy smoke flow.
-4. Update actual validation evidence, current status, and limitations. Planned tests above are not evidence that checks have run.
-5. Stop for review. No commit or push without separate approval.
+2. Subscription creation, type-deletion protection, destination-clearing protection, and focused tests are implemented.
+3. Backend/frontend regressions, release builds, migration checks, and an actual local API/proxy smoke journey passed; see the validation record. This is not browser-driven/visual validation.
+4. Actual evidence, current status, and limitations are documented. Matching/delivery and subscription editing/deletion remain unimplemented.
+5. The user reviewed the completed creation slice and explicitly authorized committing it with a well-described message and pushing it. No additional implementation scope is included.

@@ -365,6 +365,38 @@ This validates HTTP/proxy behavior, not a browser-driven/visual flow. No subscri
 
 After review, the user explicitly authorized committing and pushing the completed destination prerequisite and requested proceeding with subscription creation. Earlier review-stop statements above are historical. No application source changed for commit preparation; the previously recorded tests/builds remain the validation evidence. Subscription creation is a separate implementation/review step, not part of this prerequisite commit.
 
+## Increment 6: subscription creation and reference protection
+
+Status: **Implemented and validated; stopped for review.** The destination prerequisite was committed and pushed to `origin/main` as `e2b7622` (`Add own-user notification destination setup`) after explicit approval. The user then requested subscription creation. This creation slice is not staged, committed, or pushed; the earlier authorization covered the completed prerequisite only.
+
+### Scope and focused critical-point coverage
+
+- New own-user `POST /subscriptions` and authenticated active-type selector, domain channel invariants, scoped application/store boundary, EF mapping and `AddSubscriptions` migration, and guarded Angular creation form/facade.
+- CP1/CP2: **9 API/relational cases** cover regular/editor/admin own-user creation with server identity/time, client-owner override isolation, anonymous/no-store boundaries, CSRF/stale-account/invalid-channel no-write behavior, email/Slack/both destination requirements, protected destination clearing with allowed valid replacement, missing/deleted types, duplicate no-overwrite, type deletion restriction, and independent user/type combinations. No blanket domain/service/DTO test layer was added.
+- CP3/CP4/CP5/CP7: one focused PostgreSQL test upgrades an existing account/type/event/destination database, proves unique/FK/at-least-one-channel storage constraints, and synchronizes duplicate creation, both subscribe/delete orderings, and both subscribe/clear orderings for email and Slack. It verifies service outcomes and final rows; ordinary request tests cover corresponding HTTP mappings. It also checks cancelled lock waiters, rollback after SaveChanges/before commit, successful recovery after rollback, and the bounded safe subscription-contention outcome. Locks are synchronized through command interceptors, not timing-dependent sleep loops.
+- CP6: **13 subscription facade cases** cover successful payload/header/response validation, overlapping submits, initial/refresh loading gates, unavailable destinations, lost-response/duplicate semantics without false success or automatic retry, stale account responses/local account changes, explicit restore/reload, stale type/destination blocking, malformed success, and cancellation on unsubscribe. Existing authenticated-guard cases remain reused. Two additional event-type safe-message cases and the existing destination safe-error group cover new reference errors.
+- Independent read-only review of the three coordinating EF stores found no concrete material issues. Coordinator inspection retained the shared type-then-user lock order and verified fresh state checks after acquisition. The initial delegated frontend draft was corrected before final validation for subscription teardown, stale load gating, expected-account handling on reads, and result/payload matching.
+
+### Actual commands and results
+
+- `dotnet ef migrations add AddSubscriptions --project backend/WorldEventAlerts.Api -- --environment Development`: succeeded, creating migration/designer and updated model snapshot.
+- `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal` with no provider connection: final **197 passed, 6 skipped**. The earlier run before adding the provider case had **197 passed, 5 skipped**.
+- The full Release test command with `AUTH_TEST_CONNECTION` privately supplied for a disposable PostgreSQL 18 container: **203 passed, 0 skipped**. All existing registration/bootstrap/type/event/destination provider tests also passed. Isolated generated databases and the owned container were removed; no developer application database was modified.
+- `cd frontend && npm test -- --watch=false`: final **137 passed across 17 files**. The first delegated test run had **133 passed** before coordinator-added load/account/reference-error checks. Tests were added alongside/after implementation; no failing-first TDD evidence is claimed.
+- `dotnet build WorldEventAlerts.slnx --configuration Release`: **0 warnings, 0 errors**. `cd frontend && npm run build`: passed, including the final build.
+- `dotnet ef migrations has-pending-model-changes --project backend/WorldEventAlerts.Api -- --environment Development`: no pending model changes.
+- Targeted `dotnet format ... --verify-no-changes --no-restore --include ...`: passed after correcting anonymous-object whitespace in the new API test. Targeted frontend Prettier write/check passed after formatting the new/updated tests. Local Markdown file links, tracked `git diff --check`, and new-file trailing-whitespace checks passed.
+
+### Actual API/Angular-proxy smoke journey
+
+Started an owned temporary PostgreSQL 18 container, applied migrations, provisioned an ephemeral development administrator, and ran the Release API plus Angular development server with the real `/api` proxy. Checked anonymous denial, regular registration/login, active selector/no-store, destination-required failure, configured email/Slack, CSRF rejection, successful both-channel creation, changed-channel duplicate conflict, blocked referenced-type deletion, blocked used-destination clearing with settings preservation, allowed destination replacement/type rename/unreferenced deletion, expected-account conflict, safe invalid channels, and the subscription route app shell. A direct test-database read confirmed the original channel selection remained unchanged after the duplicate request. An earlier published event remained an event only; no matching/delivery feature exists. Owned processes and container were removed.
+
+This is HTTP/proxy verification, not browser-driven or visual validation. Subscription list/details/edit/delete, delivery/matching/history, administrator inspection, and historical replay remain absent. Uniqueness prevents duplicate subscriptions but does not replay a lost success response or confirm a changed retry payload. The creation slice is stopped for review without a commit or push.
+
+## Increment 6 subscription-creation commit authorization
+
+After review, the user explicitly authorized committing and pushing the completed subscription-creation slice with a well-described message. Earlier review-stop statements above are historical. Commit preparation updates review/authorization documentation only; application source, tests, and migration are unchanged from the recorded validation (203 backend tests with PostgreSQL, 137 frontend tests, builds, provider races, and proxy smoke checks). No additional feature scope is included.
+
 ## Future increment records
 
 Starting with subscription creation, follow the [critical-point testing workflow](PLAN.md#development-workflow): record each increment's scope, design-time critical points, focused automated tests and actual results, relevant regression/build/smoke checks, commands actually run, coverage gaps, limitations, and review status. Tests need not precede implementation; red/green evidence is optional. Earlier test-first records remain historical evidence. Do not record planned checks as completed.

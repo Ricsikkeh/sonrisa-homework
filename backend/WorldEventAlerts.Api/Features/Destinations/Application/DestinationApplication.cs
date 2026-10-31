@@ -9,6 +9,7 @@ public abstract record DestinationResult
     public sealed record Success(DestinationItem Item) : DestinationResult;
     public sealed record AccountUnavailable : DestinationResult;
     public sealed record InProgress : DestinationResult;
+    public sealed record InUse : DestinationResult;
 }
 
 public interface IDestinationStore

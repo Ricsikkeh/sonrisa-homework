@@ -106,6 +106,8 @@ describe('EventTypesFacade', () => {
   for (const { status, code, expected } of [
     { status: 400, code: 'event_type_name_invalid', expected: '1–100' },
     { status: 404, code: 'event_type_not_found', expected: 'no longer exists' },
+    { status: 409, code: 'event_type_in_use', expected: 'has subscriptions' },
+    { status: 409, code: 'event_type_change_in_progress', expected: 'another request' },
     { status: 400, code: 'antiforgery_failed', expected: 'session changed' },
   ])
     it(`maps ${code} to a local safe message without a retry`, () => {

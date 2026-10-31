@@ -236,7 +236,11 @@ export class DestinationsFacade {
       this.invalidate('Your session changed or expired. Check your session and reload settings.');
       return;
     }
-    if (parsed.code === 'destination_validation_failed')
+    if (parsed.code === 'destination_in_use')
+      this.currentError.set(
+        'A subscription uses a destination you tried to remove. Keep that destination configured; replacing it with another valid value is allowed.',
+      );
+    else if (parsed.code === 'destination_validation_failed')
       this.currentError.set(
         'Check the email address and Slack label limits. Your changes were not saved.',
       );

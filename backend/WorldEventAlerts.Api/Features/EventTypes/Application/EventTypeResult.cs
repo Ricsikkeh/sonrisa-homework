@@ -9,4 +9,6 @@ public abstract record EventTypeResult
     public sealed record Deleted : EventTypeResult;
     public sealed record NotFound : EventTypeResult;
     public sealed record NameConflict : EventTypeResult;
+    public sealed record InUse : EventTypeResult;
+    public sealed record InProgress : EventTypeResult;
 }
