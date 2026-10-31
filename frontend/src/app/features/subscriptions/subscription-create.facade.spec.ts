@@ -33,8 +33,8 @@ describe('SubscriptionCreateFacade critical behavior', () => {
   }
   function select() {
     facade.setType(typeId);
-    facade.setEmail(true);
-    facade.setSlack(true);
+    facade.setChannel('email', true);
+    facade.setChannel('slack', true);
   }
   function csrf() {
     http.expectOne('/api/auth/csrf').flush({ requestToken: 'freshCSRF' });
@@ -66,10 +66,24 @@ describe('SubscriptionCreateFacade critical behavior', () => {
     createPost().flush(created());
     expect(facade.result()).toEqual(created());
     expect(facade.selectedType()).toBe('');
-    expect(facade.emailSelected()).toBe(false);
-    expect(facade.slackSelected()).toBe(false);
+    expect(facade.channelOptions().every((option) => !option.selected)).toBe(true);
     expect(facade.busy()).toBe(false);
     http.expectNone('/api/auth/csrf');
+  });
+  it('deduplicates generic selections and posts in catalog order regardless of toggle order', () => {
+    load();
+    facade.setType(typeId);
+    facade.setChannel('slack', true);
+    facade.setChannel('email', true);
+    facade.setChannel('email', true);
+    facade.setChannel('slack', false);
+    expect(facade.channelOptions().find((option) => option.channel === 'slack')!.selected).toBe(
+      false,
+    );
+    facade.setChannel('slack', true);
+    facade.create().subscribe((ok) => expect(ok).toBe(true));
+    csrf();
+    createPost().flush(created());
   });
   it('blocks incomplete or unavailable selections and failed loads without writes', () => {
     facade.create().subscribe((ok) => expect(ok).toBe(false));
@@ -82,7 +96,7 @@ describe('SubscriptionCreateFacade critical behavior', () => {
     http.expectNone('/api/auth/csrf');
     load();
     facade.setType(typeId);
-    facade.setEmail(true);
+    facade.setChannel('email', true);
     expect(facade.canCreate()).toBe(true);
   });
   it('disables missing-destination channels and does not reuse a previously successful load after refresh failure', () => {
@@ -90,10 +104,12 @@ describe('SubscriptionCreateFacade critical behavior', () => {
     http.expectOne('/api/subscriptions/event-types').flush(types);
     http.expectOne('/api/me/destinations').flush({ email: 'alice@example.com', slackLabel: null });
     facade.setType(typeId);
-    facade.setSlack(true);
-    expect(facade.slackSelected()).toBe(false);
+    facade.setChannel('slack', true);
+    expect(facade.channelOptions().find((option) => option.channel === 'slack')!.selected).toBe(
+      false,
+    );
     expect(facade.canCreate()).toBe(false);
-    facade.setEmail(true);
+    facade.setChannel('email', true);
     expect(facade.canCreate()).toBe(true);
     facade.load();
     http.expectOne('/api/subscriptions/event-types').flush(types);
@@ -115,7 +131,7 @@ describe('SubscriptionCreateFacade critical behavior', () => {
       { status: 409, statusText: 'Conflict' },
     );
     expect(facade.denied()).toBe(true);
-    expect(facade.hasEmail()).toBe(false);
+    expect(facade.channelOptions().every((option) => !option.configured)).toBe(true);
     expect(facade.eventTypes()).toEqual([]);
     facade.create().subscribe((ok) => expect(ok).toBe(false));
     http.expectNone('/api/auth/csrf');
@@ -127,8 +143,7 @@ describe('SubscriptionCreateFacade critical behavior', () => {
     csrf();
     createPost().error(new ProgressEvent('error'));
     expect(facade.selectedType()).toBe(typeId);
-    expect(facade.emailSelected()).toBe(true);
-    expect(facade.slackSelected()).toBe(true);
+    expect(facade.channelOptions().every((option) => option.selected)).toBe(true);
     expect(facade.result()).toBeNull();
     expect(facade.error()).toContain('Unable to confirm');
     http.expectNone('/api/auth/csrf');

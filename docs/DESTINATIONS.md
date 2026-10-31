@@ -56,6 +56,23 @@ The feature facade owns loading, editable draft, save, safe error, and success s
 
 Ordinary failed saves preserve edits. An uncertain PUT response says it may already have saved; only a confirmed, validated response shows success. Reload/resubmission is explicit, never automatic. Reload replaces unsaved local edits with server settings. No destination draft is persisted in browser storage.
 
+## Destination catalog and extension guide
+
+Destination definitions are centralized without changing the existing HTTP or database contracts:
+
+- Backend: `Features/Destinations/Domain/DestinationOptions.cs` defines stable channel IDs, settings field names, limits, safe error codes, value readers, and validation policies. `DestinationSettings` normalizes input and applies these definitions. Subscription channel parsing uses the same catalog, rejecting unknown or duplicate keys and returning selections in catalog order.
+- Frontend: `features/destinations/destination-options.ts` defines typed channel/field IDs, labels, input metadata, hints, limits, and client validation. Draft creation, normalization, response checks, and saved-value comparisons use the catalog. Both the destination form and subscription channel selector render these options, with generic draft/selection state rather than separate per-channel handlers or flags.
+- Backend validation remains authoritative. Frontend email validation is a syntax precheck, not an exact implementation of .NET `MailAddress` parsing. Destination responses are checked for canonical, nonblank values (or null) in both frontend consumers.
+
+To add a destination:
+
+1. Define its stable channel ID, API field, normalization/validation rules, maximum length, and safe error code in the backend catalog; extend the settings model and request/response mappings.
+2. Add explicit destination and subscription persistence support, EF mappings, and a migration. Update the configured-destination and destination-in-use queries under the existing user lock, plus subscription response channel mapping. Preserve the type-then-user lock order and rechecks after lock acquisition.
+3. Add the matching frontend catalog entry. For the current single-text-value options, the destination input, draft handling, validation feedback, configured status, checkbox, and selected-channel payload are generated automatically. Richer inputs or real integrations require their own explicit implementation.
+4. Extend contract, validation, ownership, and provider concurrency tests, including subscribe-versus-clear behavior for the new channel.
+
+This is not dynamic plugin registration or schema-free storage: adding a catalog entry alone does **not** enable a new persisted channel. Email and Slack keep their current API fields and database columns; no migration or real delivery is introduced by this refactor.
+
 ## Validation and limitations
 
 Focused checks cover ownership/role boundaries, CSRF, validation/preservation, stale-account rejection, first-save serialization, bounded contention, cancellation, rollback, migration upgrade/data preservation/foreign keys, and consequential frontend state/recovery. Existing regression suites were also run. Actual commands/results are in [VALIDATION.md](VALIDATION.md).

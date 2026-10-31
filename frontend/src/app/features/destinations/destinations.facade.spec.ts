@@ -41,8 +41,8 @@ describe('DestinationsFacade critical behavior', () => {
   });
   it('uses fresh CSRF and the captured account, normalizes payload and blocks overlapping writes', () => {
     load();
-    facade.setEmail('  new@example.com  ');
-    facade.setSlackLabel('  ');
+    facade.setDestination('email', '  new@example.com  ');
+    facade.setDestination('slackLabel', '  ');
     facade.save().subscribe((result) => expect(result).toBe(true));
     facade.save().subscribe((result) => expect(result).toBe(false));
     facade.load();
@@ -105,7 +105,7 @@ describe('DestinationsFacade critical behavior', () => {
   });
   it('retains edits on response loss without retry or false success; an explicit reload checks persisted settings', () => {
     load();
-    facade.setEmail('edited@example.com');
+    facade.setDestination('email', 'edited@example.com');
     facade.save().subscribe((result) => expect(result).toBe(false));
     csrf();
     http.expectOne(path).error(new ProgressEvent('error'));

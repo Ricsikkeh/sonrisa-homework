@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Net.Mail;
 
 namespace WorldEventAlerts.Api.Features.Destinations.Domain;
 
@@ -17,12 +16,11 @@ public sealed record DestinationSettings
         email = Normalize(email);
         slackLabel = Normalize(slackLabel);
         errors = [];
-        if (email is not null && (email.Length > EmailMaxLength || email.Any(character => char.IsWhiteSpace(character) || char.IsControl(character)) ||
-            !MailAddress.TryCreate(email, out var address) || address.Address != email))
-            errors["email"] = ["invalid_email"];
-        if (slackLabel is not null && (slackLabel.Length > SlackLabelMaxLength || slackLabel.Any(char.IsControl)))
-            errors["slackLabel"] = ["invalid_slack_label"];
-        settings = errors.Count == 0 ? new(email, slackLabel) : null;
+        var candidate = new DestinationSettings(email, slackLabel);
+        foreach (var option in DestinationOptions.All)
+            if (!option.IsValid(option.GetValue(candidate)))
+                errors[option.Field] = [option.ErrorCode];
+        settings = errors.Count == 0 ? candidate : null;
         return settings is not null;
     }
 

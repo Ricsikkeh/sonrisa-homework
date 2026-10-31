@@ -18,38 +18,19 @@ import {
 import { AuthFacade } from '../auth/auth.facade';
 import { parseApiError } from '../../shared/http/api-error';
 
-interface Destinations {
-  email: string | null;
-  slackLabel: string | null;
-}
-interface DestinationDraft {
-  email: string;
-  slackLabel: string;
-}
-const emptyDraft: DestinationDraft = { email: '', slackLabel: '' };
-const controls = /[\u0000-\u001f\u007f-\u009f]/u;
-function normalized(draft: DestinationDraft): Destinations {
-  return { email: draft.email.trim() || null, slackLabel: draft.slackLabel.trim() || null };
-}
-function valid(value: Destinations): boolean {
-  return (
-    (value.email === null ||
-      (value.email.length <= 254 &&
-        !controls.test(value.email) &&
-        /^[^@\s<>]+@[^@\s<>]+$/u.test(value.email))) &&
-    (value.slackLabel === null ||
-      (value.slackLabel.length <= 100 && !controls.test(value.slackLabel)))
-  );
-}
-function isSettings(value: unknown): value is Destinations {
-  if (!value || typeof value !== 'object') return false;
-  const item = value as Partial<Destinations>;
-  return (
-    (item.email === null || typeof item.email === 'string') &&
-    (item.slackLabel === null || typeof item.slackLabel === 'string') &&
-    valid(item as Destinations)
-  );
-}
+import {
+  DestinationDraft,
+  DestinationField,
+  destinationOptions,
+  emptyDestinationDraft,
+  isDestinationSettings,
+  normalizeDestinations,
+  sameDestinations,
+  toDestinationDraft,
+  validDestinationValue,
+} from './destination-options';
+
+const emptyDraft = emptyDestinationDraft();
 
 @Injectable()
 export class DestinationsFacade {
@@ -77,7 +58,14 @@ export class DestinationsFacade {
   readonly editable = computed(
     () => this.sameAccount() && this.loaded() && !this.denied() && !this.loading() && !this.busy(),
   );
-  readonly valid = computed(() => valid(normalized(this.draft())));
+  readonly options = destinationOptions;
+  readonly validationErrors = computed(() => {
+    const settings = normalizeDestinations(this.draft());
+    return this.options
+      .filter((option) => !validDestinationValue(option, settings[option.field]))
+      .map((option) => option.validationMessage);
+  });
+  readonly valid = computed(() => this.validationErrors().length === 0);
 
   constructor() {
     effect(() => {
@@ -86,13 +74,7 @@ export class DestinationsFacade {
     });
   }
 
-  setEmail(value: string): void {
-    this.edit('email', value);
-  }
-  setSlackLabel(value: string): void {
-    this.edit('slackLabel', value);
-  }
-  private edit(field: keyof DestinationDraft, value: string): void {
+  setDestination(field: DestinationField, value: string): void {
     if (!this.editable()) return;
     this.currentDraft.update((draft) => ({ ...draft, [field]: value }));
     this.currentSaved.set(false);
@@ -119,7 +101,7 @@ export class DestinationsFacade {
       })
       .pipe(
         map((settings) => {
-          if (!this.sameAccount() || !isSettings(settings))
+          if (!this.sameAccount() || !isDestinationSettings(settings))
             throw new Error('Invalid settings response.');
           return settings;
         }),
@@ -128,10 +110,7 @@ export class DestinationsFacade {
       )
       .subscribe({
         next: (settings) => {
-          this.currentDraft.set({
-            email: settings.email ?? '',
-            slackLabel: settings.slackLabel ?? '',
-          });
+          this.currentDraft.set(toDestinationDraft(settings));
           this.loaded.set(true);
         },
         error: (error: unknown) => this.handleError(error, false),
@@ -167,7 +146,7 @@ export class DestinationsFacade {
         this.invalidate('Your session changed. Check your session and reload settings.');
       if (!this.editable() || !this.valid()) return of(false);
       const owner = this.owner()!;
-      const payload = normalized(this.currentDraft());
+      const payload = normalizeDestinations(this.currentDraft());
       let sent = false;
       this.currentBusy.set(true);
       this.currentSaved.set(false);
@@ -187,15 +166,11 @@ export class DestinationsFacade {
         map((settings) => {
           if (
             !this.sameAccount() ||
-            !isSettings(settings) ||
-            settings.email !== payload.email ||
-            settings.slackLabel !== payload.slackLabel
+            !isDestinationSettings(settings) ||
+            !sameDestinations(settings, payload)
           )
             throw new Error('Invalid save response.');
-          this.currentDraft.set({
-            email: settings.email ?? '',
-            slackLabel: settings.slackLabel ?? '',
-          });
+          this.currentDraft.set(toDestinationDraft(settings));
           this.currentSaved.set(true);
           return true;
         }),
@@ -242,7 +217,7 @@ export class DestinationsFacade {
       );
     else if (parsed.code === 'destination_validation_failed')
       this.currentError.set(
-        'Check the email address and Slack label limits. Your changes were not saved.',
+        'Check the destination formats and limits. Your changes were not saved.',
       );
     else if (parsed.code === 'destination_save_in_progress')
       this.currentError.set(

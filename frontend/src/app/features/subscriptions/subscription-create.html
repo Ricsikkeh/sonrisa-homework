@@ -26,8 +26,9 @@
 
   @if (facade.loaded() && !facade.denied()) {
     <p>
-      Email destination: {{ facade.hasEmail() ? 'configured' : 'not configured' }}. Slack
-      destination: {{ facade.hasSlack() ? 'configured' : 'not configured' }}.
+      @for (option of facade.channelOptions(); track option.channel) {
+        {{ option.label }} destination: {{ option.configured ? 'configured' : 'not configured' }}.
+      }
       <a routerLink="/settings/destinations">Destination settings</a>
     </p>
     @if (facade.eventTypes().length === 0) {
@@ -52,18 +53,14 @@
       </mat-select>
     </mat-form-field>
     <div>
-      <mat-checkbox
-        [ngModel]="facade.emailSelected()"
-        (ngModelChange)="facade.setEmail($event)"
-        [disabled]="facade.busy() || !facade.hasEmail()"
-        >Email</mat-checkbox
-      >
-      <mat-checkbox
-        [ngModel]="facade.slackSelected()"
-        (ngModelChange)="facade.setSlack($event)"
-        [disabled]="facade.busy() || !facade.hasSlack()"
-        >Slack</mat-checkbox
-      >
+      @for (option of facade.channelOptions(); track option.channel) {
+        <mat-checkbox
+          [ngModel]="option.selected"
+          (ngModelChange)="facade.setChannel(option.channel, $event)"
+          [disabled]="facade.busy() || !option.configured"
+          >{{ option.label }}</mat-checkbox
+        >
+      }
     </div>
     <button mat-flat-button type="button" (click)="create()" [disabled]="!facade.canCreate()">
       {{ facade.busy() ? 'Creating…' : 'Create subscription' }}

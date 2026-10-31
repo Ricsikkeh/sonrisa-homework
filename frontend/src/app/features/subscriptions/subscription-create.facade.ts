@@ -20,16 +20,18 @@ import { AuthFacade } from '../auth/auth.facade';
 import { parseApiError } from '../../shared/http/api-error';
 import { validUuid } from '../events/event-content';
 import { validEventTypeName } from '../event-types/event-type-name';
+import {
+  DestinationChannel,
+  DestinationSettings,
+  destinationOptions,
+  isDestinationSettings,
+} from '../destinations/destination-options';
 
 interface EventType {
   id: string;
   name: string;
 }
-interface Destinations {
-  email: string | null;
-  slackLabel: string | null;
-}
-type Channel = 'email' | 'slack';
+type Channel = DestinationChannel;
 export interface CreatedSubscription {
   id: string;
   eventTypeId: string;
@@ -49,20 +51,6 @@ function eventTypesValid(value: unknown): value is EventType[] {
         validEventTypeName(item.name),
     ) &&
     new Set(value.map((item) => item.id.toLowerCase())).size === value.length
-  );
-}
-function destinationsValid(value: unknown): value is Destinations {
-  if (!value || typeof value !== 'object') return false;
-  const item = value as Partial<Destinations>;
-  return (
-    (item.email === null ||
-      (typeof item.email === 'string' &&
-        item.email.trim().length > 0 &&
-        item.email.length <= 254)) &&
-    (item.slackLabel === null ||
-      (typeof item.slackLabel === 'string' &&
-        item.slackLabel.trim().length > 0 &&
-        item.slackLabel.length <= 100))
   );
 }
 function createdValid(
@@ -95,10 +83,9 @@ export class SubscriptionCreateFacade {
   private readonly injector = inject(Injector);
   private readonly owner = signal<string | null>(null);
   private readonly typesState = signal<EventType[]>([]);
-  private readonly destinationsState = signal<Destinations | null>(null);
+  private readonly destinationsState = signal<DestinationSettings | null>(null);
   private readonly selectedState = signal('');
-  private readonly emailState = signal(false);
-  private readonly slackState = signal(false);
+  private readonly channelsState = signal<readonly Channel[]>([]);
   private readonly loadedState = signal(false);
   private readonly loadingState = signal(false);
   private readonly busyState = signal(false);
@@ -113,19 +100,21 @@ export class SubscriptionCreateFacade {
   readonly denied = this.deniedState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly eventTypes = computed(() => (this.sameAccount() ? this.typesState() : []));
-  readonly hasEmail = computed(() => this.sameAccount() && !!this.destinationsState()?.email);
-  readonly hasSlack = computed(() => this.sameAccount() && !!this.destinationsState()?.slackLabel);
+  readonly channelOptions = computed(() =>
+    destinationOptions.map((option) => ({
+      ...option,
+      configured: this.sameAccount() && !!this.destinationsState()?.[option.field],
+      selected: this.sameAccount() && this.channelsState().includes(option.channel),
+    })),
+  );
   readonly loaded = computed(() => this.sameAccount() && this.loadedState() && !this.loading());
   readonly selectedType = computed(() => (this.sameAccount() ? this.selectedState() : ''));
-  readonly emailSelected = computed(() => this.sameAccount() && this.emailState());
-  readonly slackSelected = computed(() => this.sameAccount() && this.slackState());
   readonly canCreate = computed(
     () =>
       this.canEdit() &&
       this.eventTypes().some((type) => type.id === this.selectedType()) &&
-      (this.emailSelected() || this.slackSelected()) &&
-      (!this.emailSelected() || this.hasEmail()) &&
-      (!this.slackSelected() || this.hasSlack()),
+      this.channelOptions().some((option) => option.selected) &&
+      this.channelOptions().every((option) => !option.selected || option.configured),
   );
   readonly result = computed(() => (this.sameAccount() ? this.resultState() : null));
 
@@ -143,17 +132,16 @@ export class SubscriptionCreateFacade {
       this.resultState.set(null);
     }
   }
-  setEmail(value: boolean): void {
-    if (this.canEdit() && (!value || this.hasEmail())) {
-      this.emailState.set(value);
-      this.resultState.set(null);
-    }
+  setChannel(channel: Channel, selected: boolean): void {
+    if (!this.canEdit() || !destinationOptions.some((option) => option.channel === channel)) return;
+    if (selected && !this.hasDestination(channel)) return;
+    this.channelsState.update((channels) =>
+      selected ? [...new Set([...channels, channel])] : channels.filter((item) => item !== channel),
+    );
+    this.resultState.set(null);
   }
-  setSlack(value: boolean): void {
-    if (this.canEdit() && (!value || this.hasSlack())) {
-      this.slackState.set(value);
-      this.resultState.set(null);
-    }
+  private hasDestination(channel: Channel): boolean {
+    return this.channelOptions().some((option) => option.channel === channel && option.configured);
   }
 
   load(): void {
@@ -178,7 +166,11 @@ export class SubscriptionCreateFacade {
     })
       .pipe(
         map(({ types, destinations }) => {
-          if (!this.sameAccount() || !eventTypesValid(types) || !destinationsValid(destinations))
+          if (
+            !this.sameAccount() ||
+            !eventTypesValid(types) ||
+            !isDestinationSettings(destinations)
+          )
             throw new Error('Invalid subscription form response.');
           return { types, destinations };
         }),
@@ -229,9 +221,9 @@ export class SubscriptionCreateFacade {
       if (!this.canCreate()) return of(false);
       const owner = this.owner()!;
       const type = this.selectedType();
-      const channels: Channel[] = [];
-      if (this.emailSelected()) channels.push('email');
-      if (this.slackSelected()) channels.push('slack');
+      const channels = this.channelOptions()
+        .filter((option) => option.selected)
+        .map((option) => option.channel);
       let sent = false;
       this.busyState.set(true);
       this.errorState.set(null);
@@ -257,8 +249,7 @@ export class SubscriptionCreateFacade {
             throw new Error('Invalid subscription response.');
           this.resultState.set(value);
           this.selectedState.set('');
-          this.emailState.set(false);
-          this.slackState.set(false);
+          this.channelsState.set([]);
           return true;
         }),
         catchError((error: unknown) => {
@@ -290,8 +281,7 @@ export class SubscriptionCreateFacade {
     this.typesState.set([]);
     this.destinationsState.set(null);
     this.selectedState.set('');
-    this.emailState.set(false);
-    this.slackState.set(false);
+    this.channelsState.set([]);
     this.resultState.set(null);
     this.deniedState.set(true);
     this.errorState.set(message);
