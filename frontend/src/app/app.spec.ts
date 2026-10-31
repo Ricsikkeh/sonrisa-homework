@@ -6,7 +6,7 @@ import { App } from './app';
 
 describe('App', () => {
   for (const roles of [[], ['Editor'], ['Administrator']]) {
-    it(`shows the administration menu only for administrators (${roles})`, async () => {
+    it(`shows role-appropriate event creation navigation (${roles})`, async () => {
       await TestBed.configureTestingModule({
         imports: [App],
         providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
@@ -20,10 +20,18 @@ describe('App', () => {
         'button[aria-label="Administration"]',
       );
       expect(menu !== null).toBe(roles.includes('Administrator'));
+      const page = fixture.nativeElement as HTMLElement;
+      expect(page.querySelector('a[href="/events/create"]') !== null).toBe(
+        roles.includes('Editor') && !roles.includes('Administrator'),
+      );
       if (menu) {
         menu.click();
         fixture.detectChanges();
         expect(document.querySelector('a[href="/admin/event-types"]')).not.toBeNull();
+        expect(document.querySelector('a[href="/events/create"]')).not.toBeNull();
+      } else if (roles.includes('Editor')) {
+        expect(page.querySelector('a[href="/events/create"]')).not.toBeNull();
+        expect(page.querySelector('button[aria-label="Administration"]')).toBeNull();
       }
       http.verify();
     });

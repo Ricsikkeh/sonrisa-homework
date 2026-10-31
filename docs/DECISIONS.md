@@ -98,13 +98,24 @@ The user approved [EVENT-TYPES.md](EVENT-TYPES.md), including a separately revie
 - Subscription-blocked deletion and publication-time snapshots remain explicit integration work for future increments, not fabricated dependencies or completed rules.
 - Implementation stopped for review; the user subsequently explicitly authorized a descriptive commit and push for the completed bootstrap/event-type increment.
 
+## Approved event-create slice: immutable events and durable idempotency
+
+The user approved [event creation without alerts](EVENTS.md), required idempotency instead of deferring it, clarified that the deletion prohibition applies only to events, and authorized implementation. The slice is implemented and validated. After review, the user explicitly authorized committing it with a descriptive message and pushing it.
+
+- Exact `Editor` or `Administrator` role permits selection of active types and event creation; administrator-only type management remains unchanged. No role-management/provisioning feature was added.
+- Save immutable events with server UUID, UTC publication time, and a type-name snapshot protected by a PostgreSQL row-lock transaction. Titles are 1–200 UTF-16 units, messages 1–4,000, with the agreed whitespace/control policy. No drafts, edits, hard/soft deletion, event browser, or details endpoint.
+- Require a client UUID `Idempotency-Key`, scoped to account ID and event creation. Atomically reserve the key and persist the event, compare canonical-input identity, replay the original 201 response, and reject changed-input reuse. Known unique-constraint races replay after rollback; bounded lock contention returns a safe in-progress outcome. Successful keys do not expire in this POC.
+- The form/facade captures one logical payload/key before sending, blocks overlapping submissions, and never retries mutations automatically. Explicit retries use fresh CSRF with the same payload/key and an expected-account precondition checked against authenticated identity, so a cookie switched in another tab cannot save a replay under another account; validated account-bound session storage supports tab reload recovery without storing credentials/tokens. Discarding unresolved state requires confirmation and may result in a separate event on a later new-key submission.
+- No subscriptions are matched, no alerts are generated, and these events will not be automatically replayed later. Complete publication-time recipient/destination matching and delivery semantics remain a separate increment; create idempotency does not establish exactly-once notification delivery.
+- Actual PostgreSQL migration/concurrency/restart/cancellation and regression evidence is recorded in [VALIDATION.md](VALIDATION.md). Client-state loss, non-expiring ledger growth, role-management gaps, and non-browser smoke coverage are explicit limitations.
+
 ## Deferred implementation details
 
 No unresolved product question blocked increment 1. Before later increments, agree on any material behavior/security choices, including:
 
 - Deployment-specific HTTPS/proxy trust, persistent/shared data-protection keys, and account-abuse controls beyond default lockout. POC cookie/session/antiforgery choices are implemented in increment 3.
 - Production administrator provisioning. Development bootstrap collision/reporting behavior is resolved in the approved prerequisite above, preserving D06.
-- Concrete publication transaction, concurrency, and pending-delivery processing strategy.
+- Publication-time recipient/destination matching and pending-delivery processing strategy. Event-only persistence/type snapshots and creation idempotency are implemented; no notification transaction is claimed.
 - Exact retry delay, simulation controls, and safe status/error vocabulary.
 - Field validation limits, destination masking, and history presentation details.
 

@@ -1,0 +1,112 @@
+<h1>Create event</h1>
+<p>Creation immediately publishes an immutable event. Events cannot be edited or deleted.</p>
+<p>No alerts are sent in this increment.</p>
+@if (facade.loading()) {
+  <p role="status">Loading event types…</p>
+}
+@if (facade.error()) {
+  <p role="alert">{{ facade.error() }}</p>
+}
+@if (facade.accessDenied()) {
+  <button mat-button type="button" (click)="facade.checkSession()" [disabled]="facade.busy()">
+    Check current session
+  </button>
+}
+@if (facade.result(); as event) {
+  <p role="status">Event created at {{ event.publishedAt | date: 'medium' }}.</p>
+}
+<button
+  mat-button
+  type="button"
+  (click)="facade.load()"
+  [disabled]="facade.loading() || facade.busy()"
+>
+  Reload available types
+</button>
+@if (facade.typesLoaded() && facade.types().length === 0) {
+  <p>
+    No active event types are available. An administrator must create one before a new event can be
+    submitted.
+  </p>
+}
+<form [formGroup]="form" (ngSubmit)="create()">
+  <mat-form-field>
+    <mat-label>Event type</mat-label>
+    <mat-select formControlName="eventTypeId">
+      @for (type of facade.types(); track type.id) {
+        <mat-option [value]="type.id">{{ type.name }}</mat-option>
+      }
+    </mat-select>
+    <mat-error>Select an active event type.</mat-error>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Title</mat-label>
+    <input matInput formControlName="title" />
+    <mat-hint>1–200 characters after trimming; no control characters.</mat-hint>
+    <mat-error>Enter a title of 1–200 characters without control characters.</mat-error>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Message</mat-label>
+    <textarea matInput formControlName="message" rows="7"></textarea>
+    <mat-hint>1–4,000 characters after trimming. Line breaks and tabs are allowed.</mat-hint>
+    <mat-error
+      >Enter a message of 1–4,000 characters; only line breaks and tabs are allowed as
+      controls.</mat-error
+    >
+  </mat-form-field>
+  @if (!facade.pending()) {
+    <button
+      mat-flat-button
+      type="submit"
+      [disabled]="
+        form.invalid ||
+        facade.loading() ||
+        facade.busy() ||
+        facade.accessDenied() ||
+        facade.types().length === 0
+      "
+    >
+      Create event
+    </button>
+  }
+</form>
+@if (facade.pending()) {
+  <section aria-label="Saved creation request">
+    <p>
+      This creation may already have succeeded. Retry the saved request to recover its original
+      result. The saved request is locked so an explicit retry uses exactly the same content and
+      key. Retry information is stored only in this tab session.
+    </p>
+    <button
+      mat-flat-button
+      type="button"
+      (click)="retry()"
+      [disabled]="facade.busy() || facade.loading() || facade.accessDenied()"
+    >
+      Retry saved request
+    </button>
+    <button
+      mat-button
+      type="button"
+      (click)="confirmDifferent.set(true)"
+      [disabled]="facade.busy()"
+    >
+      Start a different event
+    </button>
+    @if (confirmDifferent()) {
+      <p role="alert">
+        The previous creation may already have succeeded. Starting a different event discards its
+        retry key; submitting again can create another event.
+      </p>
+      <button mat-button type="button" (click)="startDifferent()" [disabled]="facade.busy()">
+        Discard retry key and edit
+      </button>
+      <button mat-button type="button" (click)="confirmDifferent.set(false)">
+        Keep saved request
+      </button>
+    }
+  </section>
+}
+@if (facade.busy()) {
+  <p role="status">Creating or recovering event…</p>
+}

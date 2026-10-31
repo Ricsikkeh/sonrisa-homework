@@ -18,7 +18,10 @@
         </button>
         <mat-menu #adminMenu="matMenu">
           <a mat-menu-item routerLink="/admin/event-types">Event types</a>
+          <a mat-menu-item routerLink="/events/create">Create event</a>
         </mat-menu>
+      } @else if (auth.user()?.roles?.includes('Editor')) {
+        <a mat-button routerLink="/events/create">Create event</a>
       }
     }
     @case ('anonymous') {

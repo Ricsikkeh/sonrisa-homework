@@ -1,0 +1,26 @@
+:host {
+  display: block;
+  max-width: 48rem;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+}
+form {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+mat-form-field {
+  width: 100%;
+}
+form button {
+  justify-self: start;
+}
+section {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+}
+[role='alert'] {
+  font-weight: 500;
+}

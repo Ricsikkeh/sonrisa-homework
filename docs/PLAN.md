@@ -10,6 +10,8 @@ The user subsequently approved increment 3, limited to registration/login, front
 
 The user subsequently approved the [event-type management plan](EVENT-TYPES.md), including its development-admin bootstrap prerequisite and naming/concurrency choices. The bootstrap prerequisite is implemented and validated. The user then explicitly requested continuing with event-type management, its administrator menu, and an accounts-style backend. That slice is now implemented and validated; see [bootstrap setup](ADMIN-BOOTSTRAP.md) and [event-type behavior](EVENT-TYPES.md). After review, the user explicitly authorized committing and pushing the completed changes.
 
+The user subsequently approved event creation only, without alerts, with required durable idempotency. They clarified that only events cannot be deleted (event-type soft deletion stays) and explicitly authorized development. The [event-create slice](EVENTS.md) is implemented with API/persistence, active-type selector, snapshot/concurrency protection, account-scoped idempotency, and Angular form/recovery. Matching, alert processing, and event browsing are excluded. See [actual validation evidence](VALIDATION.md). After review, the user explicitly authorized a well-described commit and push of this completed slice.
+
 ## Increment 1: Local-stack scaffold — approved scope
 
 ### Scope
@@ -92,6 +94,10 @@ Acceptance: successful regular-only registration without automatic login; succes
 ## Increment 4: event-type management — approved plan
 
 See [event-type management plan](EVENT-TYPES.md) for the approved administrator-bootstrap prerequisite, event-type domain/API/UI scope, naming and concurrency choices, and test-first acceptance sequence. The bootstrap prerequisite and the subsequently requested event-type backend/admin-menu/UI slice are implemented and validated. The user subsequently authorized committing and pushing this completed increment. Subscriptions, publication, history, and general role management remain outside this increment; their integration obligations are called out explicitly.
+
+## Increment 5: event creation without alerts — approved and implemented
+
+See [event creation contract](EVENTS.md). Editors and administrators create immutable persisted events through a guarded form, with a server timestamp and transactional event-type name snapshot. No subscriptions are matched and no alerts are generated or retrospectively backfilled. Durable account-scoped keys, transactional duplicate protection, and safe same-key/tab-session recovery are included. Event deletion is prohibited; existing event-type soft deletion is explicitly retained. Test-first API/domain/form behavior, default regressions, real PostgreSQL races/restart/cancellation, builds, and proxy smoke checks are recorded in [VALIDATION.md](VALIDATION.md). After review, the user explicitly authorized committing and pushing this completed increment.
 
 ## Later milestones: proposed sequencing, not increment approval
 

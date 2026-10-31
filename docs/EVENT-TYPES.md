@@ -63,7 +63,7 @@ The agreed rule is that **any subscription referencing a type prevents deletion*
 
 Do not add a fake subscription store, an always-false dependency, or claim the restriction is complete. Before subscriptions are enabled, their increment must add the real reference check and a concurrency-safe transaction/locking protocol shared by subscription creation and type deletion. A foreign key alone cannot prevent a subscription referencing a soft-deleted row. Prove the subscribe/delete race against PostgreSQL and return `409 event_type_in_use` when deletion is blocked.
 
-Likewise, event publication must later reject deleted types and snapshot the current type name in the publication transaction. Renaming a type must not rewrite historical snapshots. Those behaviors cannot be validated before publication/history exist.
+The subsequent [event-create slice](EVENTS.md) now rejects deleted types and snapshots the current type name in its creation transaction, with a PostgreSQL row-lock protocol that serializes against the existing rename/delete UPDATE statements. Renaming or soft-deleting a type never rewrites the stored event snapshot, and completed idempotent replays still return it. The user explicitly retained type soft deletion while prohibiting event deletion. Publication-time subscription/destination matching and delivery-history presentation remain unimplemented obligations; the create-only slice generates no alerts.
 
 ## Implemented API
 
