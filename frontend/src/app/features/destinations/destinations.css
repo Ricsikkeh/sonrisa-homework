@@ -1,0 +1,17 @@
+section {
+  max-width: 42rem;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+}
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+form button {
+  align-self: flex-start;
+}
+[role='alert'] {
+  color: var(--mat-sys-error);
+}

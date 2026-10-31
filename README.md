@@ -14,7 +14,9 @@ Administrator-only event-type management is implemented: list, create, rename, a
 
 Editors and administrators can now create immutable events through `/events/create`: one active type, title, and message, with a server publication time and transactional type-name snapshot. Creation requires an account-scoped idempotency key; retries recover the original event rather than creating duplicates. The form retains a pending payload/key in tab-session storage for explicit retry/reload recovery. Events cannot be edited or deleted; event-type soft deletion remains available. See [event-create contract and recovery limits](docs/EVENTS.md).
 
-Subscriptions, destinations, alert matching/delivery, history, other administrative screens/role management, logout, and simulated notifications are **not implemented yet**. Events created in this slice send no alerts and will not automatically be replayed when alert support arrives. No real notifications are sent.
+Own notification destination setup is implemented as the subscription prerequisite: all authenticated accounts can configure an email address and simulated Slack label through **Destinations** (`/settings/destinations`). Settings are user-owned, protected against stale-account forms, and send no messages. See [destination setup and integration boundaries](docs/DESTINATIONS.md).
+
+Subscriptions, alert matching/delivery, history, other administrative screens/role management, logout, and simulated notifications are **not implemented yet**. Events created in this slice send no alerts and will not automatically be replayed when alert support arrives. No real notifications are sent.
 
 ## Prerequisites
 
@@ -61,7 +63,7 @@ The API listens at `http://localhost:5200`:
 - `GET /health` returns HTTP 200 with `{"status":"ok"}`. This checks liveness only, even without a database connection string.
 - `GET /health/ready` uses EF Core to connect to PostgreSQL and returns HTTP 200 with `{"status":"ready"}`, or HTTP 503 with `{"status":"unavailable"}`. It exposes no connection details and does not check a business schema.
 
-The Compose image creates the `alerts` database. Apply the checked-in migrations (Identity, event types, and `AddEvents`) before using the application; repeat the migration command after pulling future schema changes. Startup does not automatically migrate or create privileged accounts by default. To opt into new-account administrator provisioning in Development only, follow [the bootstrap guide](docs/ADMIN-BOOTSTRAP.md) after applying migrations.
+The Compose image creates the `alerts` database. Apply the checked-in migrations (Identity, event types, `AddEvents`, and `AddUserDestinations`) before using the application; repeat the migration command after pulling future schema changes. Startup does not automatically migrate or create privileged accounts by default. To opt into new-account administrator provisioning in Development only, follow [the bootstrap guide](docs/ADMIN-BOOTSTRAP.md) after applying migrations.
 
 Unexpected handled API failures return safe Problem Details with an error code and trace ID, not a developer exception page. The matching application error log contains allowlisted metadata, not the raw exception. Console logs use JSON/UTC timestamps. The health responses above are unchanged; see [error handling and logging](docs/ERROR-HANDLING.md) for the policy and boundaries.
 
@@ -78,6 +80,8 @@ Open `http://localhost:4200`. Angular's development proxy forwards `/api/**` to 
 Open `/register` to create an account, then `/login` to sign in. Reloading the application restores the session through the minimal current-user endpoint. Sessions last at most eight hours without sliding renewal; local HTTP is allowed only in Development. Production requires HTTPS. There is no logout endpoint in this increment. After applying migrations and [provisioning a new development administrator](docs/ADMIN-BOOTSTRAP.md), sign in with that account and open **Administration → Event types**, or `/admin/event-types`. Regular users and editors cannot access management; direct API requests are also authorized server-side.
 
 For event creation, administrators use **Administration → Create event**; editors have a **Create event** navigation link. Both can open `/events/create`. Only active types can be selected; creating an event immediately saves it as published, without alerts. On a lost response, use **Retry saved request** to recover the same event with the same key. The form locks unresolved content and sends an expected-account precondition to prevent retrying under a cookie changed in another tab; starting a different event requires confirmation because the previous request may already have succeeded. Do not clear tab storage or discard the retry key merely to retry. Closing the tab, corrupt/cleared state, or deliberately using a new key cannot be recognized as a retry of the earlier operation. Session storage contains pending event content, not credentials/tokens. There is no editor-role provisioning API/UI yet; use the existing development administrator for manual testing.
+
+All signed-in accounts have a **Destinations** link to `/settings/destinations`. Save an email address, a simulated Slack label, or both; empty fields remove those settings. Save replaces both values, sends no notifications, and never retries automatically. If the response is uncertain, explicitly reload to check persisted settings. Session/account changes require **Check session and reload settings** before further writes. Subscription creation and the restriction on clearing destinations used by subscriptions are not enabled yet.
 
 The frontend can start without the API and will display a safe unavailable status. API liveness does not imply database/schema readiness.
 
@@ -109,7 +113,7 @@ npm test -- --watch=false
 npm run build
 ```
 
-Default automated tests do not require Docker; authentication tests use in-memory SQLite. The PostgreSQL registration, administrator-bootstrap, event-type, and event-creation/idempotency migration/concurrency tests are skipped unless `AUTH_TEST_CONNECTION` is supplied. To run them, set that environment variable privately to a development PostgreSQL connection string with `CREATEDB` permission, then run `dotnet test WorldEventAlerts.slnx` again. Each provider test creates and drops a separate randomly named test database; none migrates or adds users to the configured application's database. Do not commit the connection string or put real credentials in command examples.
+Default automated tests do not require Docker; authentication tests use in-memory SQLite. The PostgreSQL registration, administrator-bootstrap, event-type, event-creation/idempotency, and destination migration/concurrency tests are skipped unless `AUTH_TEST_CONNECTION` is supplied. To run them, set that environment variable privately to a development PostgreSQL connection string with `CREATEDB` permission, then run `dotnet test WorldEventAlerts.slnx` again. Each provider test creates and drops a separate randomly named test database; none migrates or adds users to the configured application's database. Do not commit the connection string or put real credentials in command examples.
 
 Real database connectivity and the running authentication/proxy flow were also validated separately; see the validation record. No browser-driven end-to-end suite exists yet.
 
@@ -121,12 +125,15 @@ Real database connectivity and the running authentication/proxy flow were also v
 - `backend/WorldEventAlerts.Api/Infrastructure/Accounts/`: Identity implementation, authentication/security configuration, and Development-only administrator bootstrap.
 - `backend/WorldEventAlerts.Api/Features/EventTypes/`: validated names, application service/provider boundary, thin controller, and HTTP DTOs.
 - `backend/WorldEventAlerts.Api/Infrastructure/EventTypes/`: EF mapping, active-name uniqueness, and atomic conditional mutations.
+- `backend/WorldEventAlerts.Api/Features/Destinations/`: own-destination validation, application/store boundary, thin controller, and DTOs.
+- `backend/WorldEventAlerts.Api/Infrastructure/Destinations/`: EF mapping and transactional, per-user serialized settings replacement.
 - `backend/WorldEventAlerts.Api/Features/Events/`: immutable event/content, create service/provider boundary, authorized selector/create controller, and DTOs.
 - `backend/WorldEventAlerts.Api/Infrastructure/Events/`: EF mapping, account-scoped idempotency reservations/replay, and event-type row-lock transaction.
 - `backend/WorldEventAlerts.Api/Infrastructure/Http/`: shared MVC configuration and antiforgery filter.
 - `frontend/src/app/features/home/`: home presentation and feature facade.
 - `frontend/src/app/features/auth/`: registration/login forms, shared authentication facade, and administrator route guard.
 - `frontend/src/app/features/event-types/`: event-type management screen, validation, and feature-owned facade.
+- `frontend/src/app/features/destinations/`: guarded own-settings form and identity-aware feature facade.
 - `frontend/src/app/features/events/`: guarded creation form, matching validation, facade, and tab-session retry recovery.
 - `frontend/src/app/shared/http/`: safe error parsing for future feature facades.
 - `compose.yaml`: local PostgreSQL only; frontend/backend run on the host.
@@ -141,5 +148,7 @@ Real database connectivity and the running authentication/proxy flow were also v
 - [Development administrator bootstrap](docs/ADMIN-BOOTSTRAP.md)
 - [Approved event-type increment plan](docs/EVENT-TYPES.md)
 - [Event creation and idempotency contract](docs/EVENTS.md)
+- [Approved subscription-creation plan and critical test points](docs/SUBSCRIPTIONS.md)
+- [Own notification destinations](docs/DESTINATIONS.md)
 - [Production gaps and exclusions](docs/PRODUCTION-GAPS.md)
 - [Validation record](docs/VALIDATION.md)

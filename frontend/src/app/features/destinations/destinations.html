@@ -1,0 +1,65 @@
+<section aria-labelledby="destinations-heading">
+  <h1 id="destinations-heading">Notification destinations</h1>
+  <p>
+    Configure your own simulated email and Slack destinations. No messages are sent and no
+    integration credentials are needed.
+  </p>
+  <p>Leave either field empty to remove that destination. Saving replaces both settings.</p>
+  @if (facade.loading()) {
+    <p role="status">Loading your settings…</p>
+  }
+  @if (facade.error()) {
+    <p role="alert">{{ facade.error() }}</p>
+  }
+  @if (facade.saved()) {
+    <p role="status">Destinations saved. No notifications were sent.</p>
+  }
+  <button
+    mat-button
+    type="button"
+    (click)="facade.reload()"
+    [disabled]="facade.busy() || facade.loading()"
+  >
+    Check session and reload settings
+  </button>
+  <form (ngSubmit)="save()">
+    <mat-form-field>
+      <mat-label>Email address (optional)</mat-label>
+      <input
+        matInput
+        name="email"
+        type="email"
+        maxlength="254"
+        autocomplete="email"
+        [ngModel]="facade.draft().email"
+        (ngModelChange)="facade.setEmail($event)"
+        [disabled]="!facade.editable()"
+      />
+      <mat-hint>Up to 254 characters. No email verification or real delivery.</mat-hint>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Simulated Slack destination label (optional)</mat-label>
+      <input
+        matInput
+        name="slackLabel"
+        maxlength="100"
+        autocomplete="off"
+        [ngModel]="facade.draft().slackLabel"
+        (ngModelChange)="facade.setSlackLabel($event)"
+        [disabled]="!facade.editable()"
+      />
+      <mat-hint
+        >Up to 100 characters, for example #weather-alerts. Not a webhook or token.</mat-hint
+      >
+    </mat-form-field>
+    @if (!facade.valid()) {
+      <p role="alert">
+        Use a valid email address (up to 254 characters) and a Slack label of up to 100 characters,
+        without control characters.
+      </p>
+    }
+    <button mat-flat-button type="submit" [disabled]="!facade.editable() || !facade.valid()">
+      {{ facade.busy() ? 'Saving…' : 'Save destinations' }}
+    </button>
+  </form>
+</section>

@@ -331,6 +331,40 @@ Authorization: the user approved the create-only plan but required idempotency, 
 
 After review of the completed event-create slice, the user explicitly authorized a well-described commit and push. The source, tests, migration, UI, and validation evidence above are unchanged; commit preparation updates authorization/status documentation only. Earlier review-stop notes are historical. The slice is grouped into one cohesive feature commit covering immutable creation, durable idempotency and recovery, role boundaries, type snapshots, and the explicit no-alert/no-event-deletion scope. Prior validation is retained rather than rerunning unchanged application tests for this documentation-only follow-up.
 
+## Increment 6 prerequisite: own notification destinations
+
+Status: **Implemented and validated; stopped for prerequisite review.** Subscription creation has not started. Scope and API/field/locking details: [DESTINATIONS.md](DESTINATIONS.md). The user authorized development after approving the critical-point plan, including expected-account protection. No staging, commit, or push was performed.
+
+### Focused critical-point checks (not mandatory TDD)
+
+- API/SQLite: **7 passing destination cases** cover own-user role/isolation behavior, anonymous denial/no-store, email/Slack/both/clearing, invalid-setting preservation, CSRF refusal, expected-account mismatch/multi-value rejection, and trimmed UTF-16 limits. These are focused outcome checks, not blanket domain/service/DTO tests.
+- Frontend: **8 facade checks and 5 authenticated-guard cases** cover loading gates, CSRF/account headers, overlapping-submit suppression, stale-account/401/403 clearing and explicit recovery, lost-response ambiguity without automatic retries, safe errors/malformed success, and restored regular/editor/admin access with anonymous/unavailable denial.
+- PostgreSQL: one focused provider test upgrades an existing account/type/event database through `AddUserDestinations`, verifies preserved data and owner foreign keys, synchronizes competing first saves on the same stable user row, cancels a lock waiter, exercises the five-second safe contention outcome, and injects failure after SaveChanges/before commit to prove rollback. Both settings fields stay together and a subsequent save succeeds.
+- Subscription-only CP2/CP3/CP4/CP5 work remains unimplemented: selected-channel references, duplicate creation, type-deletion protection, and subscribe-versus-clear/delete races are not claimed complete.
+
+### Commands and results
+
+- `dotnet ef migrations add AddUserDestinations --project backend/WorldEventAlerts.Api -- --environment Development`: succeeded; explicit migration/designer and updated snapshot created.
+- `dotnet test WorldEventAlerts.slnx --configuration Release --filter FullyQualifiedName~DestinationTests --verbosity minimal`: initially **7 passed** (before the provider test was added).
+- `dotnet test WorldEventAlerts.slnx --configuration Release --verbosity minimal`: **188 passed, 5 skipped**, with no provider connection configured.
+- The same full Release test command with `AUTH_TEST_CONNECTION` privately supplied for a disposable PostgreSQL 18 container: **193 passed, 0 skipped**. All provider tests use isolated generated databases; the container was removed afterward. No developer application database was changed.
+- `dotnet ef migrations has-pending-model-changes --project backend/WorldEventAlerts.Api -- --environment Development`: no pending changes.
+- `cd frontend && npm test -- --watch=false`: **122 passed across 16 files**. The first run had one failed new account-mismatch case because the mocked Problem Details omitted required `type`/`title`; the fixture was corrected to match the real safe API contract, then the full suite passed. This is not claimed as failing-first TDD.
+- `dotnet build WorldEventAlerts.slnx --configuration Release`: passed with **0 warnings and 0 errors**.
+- `cd frontend && npm run build`: passed, including the final rerun. An initial invocation at repository root failed because no root `package.json` exists; it was rerun in the correct directory.
+- Targeted frontend `npx prettier --check ...`: passed after formatting the corrected test fixture. Local Markdown file links, tracked-file `git diff --check`, and a separate new-file trailing-whitespace scan passed.
+- Targeted `dotnet format WorldEventAlerts.slnx --verify-no-changes --no-restore --include ...` for destination code/tests and touched backend composition/context: passed. Targeted frontend Prettier formatting was applied.
+
+### Actual local-service smoke flow
+
+Started an owned temporary PostgreSQL 18 container, applied migrations, and ran the Release API plus Angular dev server with the real `/api` proxy. HTTP checks passed for anonymous 401/no-store, regular registration/login, empty settings, CSRF refusal, trimmed save/read, invalid-setting preservation, expected-account conflict/no-write, clearing, and the destination route's app shell. Credentials were generated locally or ephemeral test-only values, never added to source. Owned processes and the container were removed.
+
+This validates HTTP/proxy behavior, not a browser-driven/visual flow. No subscriptions or notifications were created. The clearing restriction for destinations used by subscriptions must be integrated before subscription creation is enabled. Existing local field edits are not persisted in browser storage and explicit reload replaces them. Stop for review without committing or pushing.
+
+## Increment 6 destination prerequisite commit authorization
+
+After review, the user explicitly authorized committing and pushing the completed destination prerequisite and requested proceeding with subscription creation. Earlier review-stop statements above are historical. No application source changed for commit preparation; the previously recorded tests/builds remain the validation evidence. Subscription creation is a separate implementation/review step, not part of this prerequisite commit.
+
 ## Future increment records
 
-Record each increment's scope, test-first failure and expected reason, passing checks, commands actually run, limitations, and review status. Do not record planned checks as completed.
+Starting with subscription creation, follow the [critical-point testing workflow](PLAN.md#development-workflow): record each increment's scope, design-time critical points, focused automated tests and actual results, relevant regression/build/smoke checks, commands actually run, coverage gaps, limitations, and review status. Tests need not precede implementation; red/green evidence is optional. Earlier test-first records remain historical evidence. Do not record planned checks as completed.

@@ -99,6 +99,10 @@ See [event-type management plan](EVENT-TYPES.md) for the approved administrator-
 
 See [event creation contract](EVENTS.md). Editors and administrators create immutable persisted events through a guarded form, with a server timestamp and transactional event-type name snapshot. No subscriptions are matched and no alerts are generated or retrospectively backfilled. Durable account-scoped keys, transactional duplicate protection, and safe same-key/tab-session recovery are included. Event deletion is prohibited; existing event-type soft deletion is explicitly retained. Test-first API/domain/form behavior, default regressions, real PostgreSQL races/restart/cancellation, builds, and proxy smoke checks are recorded in [VALIDATION.md](VALIDATION.md). After review, the user explicitly authorized committing and pushing this completed increment.
 
+## Increment 6: own subscription creation — approved plan
+
+The user approved the subscription-creation plan, including minimal user-level destination setup as a separately reviewable prerequisite, with one workflow change: use design-time critical-point testing instead of mandatory TDD. See [subscription scope and critical test points](SUBSCRIPTIONS.md). The user subsequently authorized development, including expected-account protection. The minimal [destination prerequisite](DESTINATIONS.md) is implemented, validated, and reviewed; the user explicitly authorized its commit/push and requested proceeding with subscription creation. See [actual evidence](VALIDATION.md). Subscription creation and its destination/type-deletion integration are authorized next, not yet implemented. Subscription editing/deletion, matching/delivery, history, and administrator inspection remain excluded.
+
 ## Later milestones: proposed sequencing, not increment approval
 
 | Milestone | Deliverable and acceptance focus |
@@ -114,20 +118,26 @@ Milestones may be reordered when planning their increments. They are not permiss
 
 ## Development workflow
 
-Before each implementation increment, agree on scope, acceptance criteria, validation approach, and significant technical decisions.
+Before each implementation increment, agree on scope, acceptance criteria, validation approach, significant technical decisions, and the critical points that require automated tests.
 
-For each approved business-rule/behavior increment:
+### Current testing policy: design-time critical points, not mandatory TDD
 
-1. Write the test first.
-2. Run it and verify failure for the expected reason.
-3. Implement the minimum correct behavior.
-4. Run the tests again.
-5. Refactor where useful, keeping tests passing.
+The user replaced the mandatory TDD workflow with risk-based testing, starting with subscription creation. Earlier increments and their test-first evidence remain historical records, not requirements for future work.
+
+For each approved increment:
+
+1. Identify and document critical failure modes during design, with the focused tests needed to verify them. Prioritize authorization/ownership, security, data integrity, concurrency, and consequential business rules or recovery behavior.
+2. Implement the approved scope. Tests may be written before, alongside, or after implementation; an observed failing test before implementation is not required.
+3. Add and run automated tests for the agreed critical points. Do not add tests for every method, DTO, presentation detail, or routine happy path solely for coverage.
+4. If implementation reveals a new material risk, update the critical-point list and add targeted coverage; agree on any significant scope or technical changes before proceeding.
+5. Run relevant existing regression tests and builds, and perform agreed smoke/manual checks. Preserve existing tests unless a deliberate change makes them obsolete. Record untested behavior and limitations honestly.
+
+This changes new-test selection and sequencing, not the need to verify critical behavior. No blanket coverage target or mandatory red/green evidence applies.
 
 At the end of each increment:
 
 - Summarize changes.
-- Record commands/checks actually run and results, including red/green evidence.
+- Record the agreed critical test points, commands/checks actually run, results, and any coverage gaps. Red/green evidence is optional, not required.
 - Identify limitations, unresolved issues, and production gaps.
 - Stop for review.
 - Commit only after explicit approval, using a message describing the actual change. The user explicitly authorized the increment 1 initialization commit.

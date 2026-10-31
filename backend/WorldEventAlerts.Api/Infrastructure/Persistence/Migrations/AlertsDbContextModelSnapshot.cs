@@ -218,6 +218,24 @@ namespace WorldEventAlerts.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("WorldEventAlerts.Api.Features.Destinations.Domain.UserDestinations", b =>
+                {
+                    b.Property<string>("OwnerId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<string>("SlackLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("OwnerId");
+
+                    b.ToTable("UserDestinations", (string)null);
+                });
+
             modelBuilder.Entity("WorldEventAlerts.Api.Features.EventTypes.Domain.EventType", b =>
                 {
                     b.Property<Guid>("Id")
@@ -351,6 +369,15 @@ namespace WorldEventAlerts.Api.Infrastructure.Persistence.Migrations
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WorldEventAlerts.Api.Features.Destinations.Domain.UserDestinations", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithOne()
+                        .HasForeignKey("WorldEventAlerts.Api.Features.Destinations.Domain.UserDestinations", "OwnerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
